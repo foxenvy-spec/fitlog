@@ -28,6 +28,8 @@ import {
 } from '@/lib/dashboardStats'
 import { fetchWeeklyVolumeTargets } from '@/lib/weeklyVolumeTargets'
 import { saveDisplayName } from '@/lib/profile'
+import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
+import type { ExerciseDef } from '@/lib/exerciseLibrary'
 import { computePushPullBalance, computeAIDailySummary } from '@/lib/aiCoach'
 import { VOLUME_MUSCLES, RECOVERY_MUSCLES } from '@/lib/muscle-groups'
 import { DEFAULT_DASHBOARD_PREFS, loadDashboardPrefs, saveDashboardPrefs, type DashboardPrefs } from '@/lib/dashboardPrefs'
@@ -98,7 +100,7 @@ interface DashboardData {
   weeklyGoalPct: number
 }
 
-async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Promise<DashboardData> {
+async function fetchDashboardData(supabase: ReturnType<typeof createClient>, exercises: ExerciseDef[]): Promise<DashboardData> {
   const dow = todayDayOfWeek()
   const today = todayStr()
 
@@ -218,7 +220,7 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Pr
   ])
 
   const prSuggestion = lastExerciseName
-    ? suggestNextPR(lastExerciseName, (exerciseHistory as Workout[]) ?? [])
+    ? suggestNextPR(lastExerciseName, (exerciseHistory as Workout[]) ?? [], exercises)
     : null
 
   // ชื่อ "Last workout" เดาจากโปรแกรมที่ตั้งไว้สำหรับวันในสัปดาห์นั้น (heuristic เดียวกับที่ใช้กับ
@@ -277,13 +279,15 @@ export default function DashboardPage() {
     setPrefs(loadDashboardPrefs())
   }, [])
 
+  const { data: exercises = [] } = useExerciseLibrary()
+
   const {
     data,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['dashboard', today],
-    queryFn: () => fetchDashboardData(supabase),
+    queryKey: ['dashboard', today, exercises.length],
+    queryFn: () => fetchDashboardData(supabase, exercises),
   })
 
   function updatePrefs(next: DashboardPrefs) {
