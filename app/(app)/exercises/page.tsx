@@ -1,16 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { EXERCISES, searchExercises, type ExerciseDef } from '@/lib/exercises'
+import { searchExercises, type ExerciseDef } from '@/lib/exercises'
+import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_COLORS, muscleGroupLabel, type MuscleGroup, type MuscleLabelLang } from '@/lib/muscle-groups'
 import { loadMuscleLabelLang, saveMuscleLabelLang } from '@/lib/muscleLabelPrefs'
 import MuscleLangToggle from '@/components/MuscleLangToggle'
+import LoadingState from '@/components/LoadingState'
+import ErrorState from '@/components/ErrorState'
 
 export default function ExercisesPage() {
   const [query, setQuery] = useState('')
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [lang, setLang] = useState<MuscleLabelLang>('th')
+  const { data: exercises = [], isLoading, isError, refetch } = useExerciseLibrary()
 
   useEffect(() => {
     setLang(loadMuscleLabelLang())
@@ -22,16 +26,27 @@ export default function ExercisesPage() {
   }
 
   const list = useMemo(() => {
-    if (query.trim()) return searchExercises(query, 50)
-    return muscle ? EXERCISES.filter((ex) => ex.muscleGroup === muscle) : EXERCISES
-  }, [query, muscle])
+    if (query.trim()) return searchExercises(exercises, query, 50)
+    return muscle ? exercises.filter((ex) => ex.muscleGroup === muscle) : exercises
+  }, [exercises, query, muscle])
+
+  if (isLoading) return <LoadingState />
+  if (isError) {
+    return (
+      <ErrorState
+        title="โหลดฐานข้อมูลท่าออกกำลังกายไม่สำเร็จ"
+        message="ตรวจสอบการเชื่อมต่อแล้วลองใหม่"
+        onRetry={() => refetch()}
+      />
+    )
+  }
 
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl tracked uppercase">ฐานข้อมูลท่าออกกำลังกาย</h1>
-          <p className="text-sm text-muted mt-1">{EXERCISES.length} ท่า — ค้นหาหรือเลือกจากรายการ</p>
+          <p className="text-sm text-muted mt-1">{exercises.length} ท่า — ค้นหาหรือเลือกจากรายการ</p>
         </div>
         <MuscleLangToggle lang={lang} onChange={updateLang} />
       </div>
