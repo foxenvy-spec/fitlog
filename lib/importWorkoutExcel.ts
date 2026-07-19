@@ -174,7 +174,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
   const title = titleCell ? String(titleCell) : sheetName.replace(/_/g, ' ')
   const dayMuscleGuess = guessMuscleGroup(`${sheetName} ${title}`)
 
-  const exercises: ParsedExerciseRow[] = []
+  const parsedExercises: ParsedExerciseRow[] = []
   let convertedLbCount = 0
   let fuzzyMatchCount = 0
   let noMatchCount = 0
@@ -222,7 +222,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     if (libMatch?.matchType === 'fuzzy') fuzzyMatchCount++
     if (!libMatch) noMatchCount++
 
-    exercises.push({
+    parsedExercises.push({
       id: `${sheetName}-${r}`,
       name: exerciseName,
       sets: setsVal !== null ? Math.round(setsVal) : null,
@@ -254,9 +254,9 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     warnings.push(`"${title}": ${noMatchCount} ท่าไม่พบใน Exercise Library — เดากลุ่มกล้ามเนื้อจากชื่อวันแทน กรุณาตรวจสอบ`)
   }
 
-  if (exercises.length === 0) return null
+  if (parsedExercises.length === 0) return null
 
-  return { sheetName, title, exercises }
+  return { sheetName, title, exercises: parsedExercises }
 }
 
 function parseBodyLogSheet(rows: unknown[][]): ParsedBodyLogRow[] {
