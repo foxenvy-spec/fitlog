@@ -414,7 +414,7 @@ describe('recoveryRecommendationLabel', () => {
   })
 
   it('shows the completion percentage when partially through today\'s plan', () => {
-    expect(recoveryRecommendationLabel(43)).toBe('🟢 ทำได้ 43% ของเป้าหมาย')
+    expect(recoveryRecommendationLabel(43)).toBe('🟢 วันนี้ทำได้ 43% ของเป้าหมายแล้ว\n🎯 ครั้งหน้าแนะนำเล่น')
   })
 
   it('reframes as a next-session suggestion once today\'s plan is fully complete', () => {

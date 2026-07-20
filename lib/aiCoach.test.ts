@@ -198,7 +198,7 @@ describe('computeAIDailySummary', () => {
       { pushSets: 10, pullSets: 10, ratio: 1, status: 'balanced' },
       43
     )
-    expect(msg).toContain('🟢 ทำได้ 43% ของเป้าหมาย หลัง')
+    expect(msg).toContain('🟢 วันนี้ทำได้ 43% ของเป้าหมายแล้ว\n🎯 ครั้งหน้าแนะนำเล่น หลัง')
   })
 })
 
