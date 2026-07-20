@@ -146,7 +146,7 @@ function isRowEmpty(row: unknown[] | undefined): boolean {
   return row.every((c) => c === null || c === undefined || String(c).trim() === '')
 }
 
-function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[], exercises: ExerciseDef[]): ParsedDay | null {
+function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[], exerciseLibrary: ExerciseDef[]): ParsedDay | null {
   const headerRowIdx = findHeaderRow(rows)
   if (headerRowIdx === -1) return null
 
@@ -219,7 +219,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     // จับคู่ชื่อท่ากับ Exercise Library ก่อน (exact → loose → fuzzy) — ได้กลุ่มกล้ามเนื้อที่แม่นยำกว่า
     // การเดาจากชื่อวัน/ชื่อชีต ถ้าไม่เจอเลยค่อย fallback ไปใช้ dayMuscleGuess เหมือนเดิม
     const exerciseName = String(nameRaw).trim()
-    const libMatch = matchExercise(exercises, exerciseName)
+    const libMatch = matchExercise(exerciseLibrary, exerciseName)
     if (libMatch?.matchType === 'fuzzy') fuzzyMatchCount++
     if (!libMatch) noMatchCount++
 
