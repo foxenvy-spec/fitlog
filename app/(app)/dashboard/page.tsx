@@ -486,7 +486,7 @@ export default function DashboardPage() {
                           style={{ backgroundColor: recColor + '1A' }}
                         >
                           <span className="text-sm">💪</span>
-                          <p className="text-xs text-ink">
+                          <p className="text-xs text-ink whitespace-pre-line">
                             {recoveryRecommendationLabel(recoveryLabelPct)}{' '}
                             <span className="font-display tracked uppercase" style={{ color: recColor }}>
                               {recommendation.muscleGroup}
@@ -542,7 +542,7 @@ export default function DashboardPage() {
                 <p className="text-[10px] tracked uppercase text-muted">✨ AI Coach</p>
                 <span className="text-muted text-xs">ดูรายละเอียด →</span>
               </div>
-              <p className="text-xs text-ink">{data.aiDailySummary}</p>
+              <p className="text-xs text-ink whitespace-pre-line">{data.aiDailySummary}</p>
             </a>
           </>
         )}
