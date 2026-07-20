@@ -11,7 +11,7 @@ import { findExerciseByName, type ExerciseDef } from '@/lib/exercises'
 import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import LoadingState from '@/components/LoadingState'
 import SetEntryList, { newSetRow, type SetRow } from '@/components/SetEntryList'
-import ImportCardioPhoto from '@/components/ImportCardioPhoto'
+import ImportCardioPhoto from '@/components/ImportCardioPhotoGemini'
 
 const CARDIO_PRESETS = ['วิ่ง', 'ปั่นจักรยาน', 'ว่ายน้ำ', 'เดินเร็ว', 'กระโดดเชือก']
 
