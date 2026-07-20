@@ -527,7 +527,7 @@ function DayCard({
               </div>
             )}
             {ex.include && (
-              <div className="pl-6">
+              <div className="pl-6 space-y-1">
                 <select
                   value={ex.muscleGroup}
                   onChange={(e) => onUpdateExercise(ex.id, { muscleGroup: e.target.value as MuscleGroup })}
@@ -539,6 +539,9 @@ function DayCard({
                     </option>
                   ))}
                 </select>
+                {ex.secondaryMuscles.length > 0 && (
+                  <p className="text-[11px] text-muted/70">กล้ามเนื้อรอง: {ex.secondaryMuscles.join(', ')}</p>
+                )}
               </div>
             )}
           </li>
