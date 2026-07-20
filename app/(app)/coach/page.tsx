@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import type { Workout } from '@/lib/types'
 import { MUSCLE_GROUPS, VOLUME_MUSCLES } from '@/lib/muscle-groups'
+import { todayStr } from '@/lib/weekdays'
 import {
   computeRecoveryPct,
   suggestMuscleToTrain,
@@ -109,7 +110,11 @@ export default function CoachPage() {
         .map((name) => computeProgressiveOverload(name, allEntries, exercises))
         .filter((p): p is OverloadPlan => p !== null)
 
-      const dailySummary = computeAIDailySummary(recommendation, balance)
+      const dailySummary = computeAIDailySummary(
+        recommendation,
+        balance,
+        allEntries.some((w) => w.performed_at?.slice(0, 10) === todayStr())
+      )
 
       setData({ dailySummary, balance, balanceInsights, overloadPlans })
     } catch (err) {
