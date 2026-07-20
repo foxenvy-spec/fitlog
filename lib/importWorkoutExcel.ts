@@ -22,6 +22,7 @@ export interface ParsedExerciseRow {
   // ผลการจับคู่กับ Exercise Library — null = ไม่พบท่านี้ใน Library เลย (fallback ไปเดากลุ่มกล้ามเนื้อจากชื่อวันแทน)
   matchedExerciseId: string | null
   matchConfidence: ExerciseMatchType | null
+  secondaryMuscles: string[]
 }
 
 export interface ParsedDay {
@@ -174,7 +175,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
   const title = titleCell ? String(titleCell) : sheetName.replace(/_/g, ' ')
   const dayMuscleGuess = guessMuscleGroup(`${sheetName} ${title}`)
 
-  const parsedExercises: ParsedExerciseRow[] = []
+  const exercises: ParsedExerciseRow[] = []
   let convertedLbCount = 0
   let fuzzyMatchCount = 0
   let noMatchCount = 0
@@ -222,7 +223,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     if (libMatch?.matchType === 'fuzzy') fuzzyMatchCount++
     if (!libMatch) noMatchCount++
 
-    parsedExercises.push({
+    exercises.push({
       id: `${sheetName}-${r}`,
       name: exerciseName,
       sets: setsVal !== null ? Math.round(setsVal) : null,
@@ -239,6 +240,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
       rationale: rationale ? String(rationale).trim() : null,
       matchedExerciseId: libMatch?.exercise.id ?? null,
       matchConfidence: libMatch?.matchType ?? null,
+      secondaryMuscles: libMatch?.exercise.secondaryMuscles ?? [],
     })
   }
 
@@ -254,9 +256,9 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     warnings.push(`"${title}": ${noMatchCount} ท่าไม่พบใน Exercise Library — เดากลุ่มกล้ามเนื้อจากชื่อวันแทน กรุณาตรวจสอบ`)
   }
 
-  if (parsedExercises.length === 0) return null
+  if (exercises.length === 0) return null
 
-  return { sheetName, title, exercises: parsedExercises }
+  return { sheetName, title, exercises }
 }
 
 function parseBodyLogSheet(rows: unknown[][]): ParsedBodyLogRow[] {
