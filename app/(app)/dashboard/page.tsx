@@ -201,7 +201,6 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>, exe
   })
   const muscleRecommendation = suggestMuscleToTrain(recoveryPctForSummary)
   const pushPullBalance = computePushPullBalance(thisWeekSets)
-  const aiDailySummary = computeAIDailySummary(muscleRecommendation, pushPullBalance)
 
   const lastExerciseName = strengthRows.find((r) => r.exercise_name)?.exercise_name ?? null
   const currentDay = typedDays.find((d) => d.day_of_week === dow) ?? null
@@ -246,6 +245,16 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>, exe
       )
     completedCount = completions?.length ?? 0
   }
+
+  // % ความคืบหน้าของแผนวันนี้ ใช้ทั้งโชว์ตัวเลขในข้อความแนะนำ และตัดสินว่า "ฝึกวันนี้ไปแล้ว" หรือยัง
+  // ถ้าวันนี้ไม่มีแผนกำหนดไว้ (บันทึกอิสระ) ให้ถือว่า 100% ถ้ามี log อย่างน้อย 1 รายการ ไม่งั้นเป็น null (ยังไม่ได้ฝึกอะไรเลย)
+  const progressPctForLabel =
+    todayExercises.length > 0
+      ? Math.round((completedCount / todayExercises.length) * 100)
+      : todayList.length > 0
+        ? 100
+        : null
+  const aiDailySummary = computeAIDailySummary(muscleRecommendation, pushPullBalance, progressPctForLabel)
 
   return {
     email: user?.email ?? null,
@@ -321,7 +330,10 @@ export default function DashboardPage() {
   const cells = useMemo(() => statCells(prefs, data?.bodyWeightKg ?? null), [prefs, data?.bodyWeightKg])
 
   const workoutTitle = scheduledDay?.title ?? ((data?.todayWorkouts.length ?? 0) > 0 ? 'บันทึกอิสระ' : null)
-  const hasTrainedToday = (data?.todayWorkouts.length ?? 0) > 0
+  // % ความคืบหน้าที่ใช้กับข้อความแนะนำกล้ามเนื้อ (recoveryRecommendationLabel) — เหมือน progressPct
+  // ของ ring ด้านบน แต่ถ้าวันนี้ไม่มีแผนกำหนดไว้ (บันทึกอิสระ) ให้ถือว่า 100% เมื่อมี log อย่างน้อย 1 รายการ
+  const recoveryLabelPct =
+    progressPct !== null ? progressPct : (data?.todayWorkouts.length ?? 0) > 0 ? 100 : null
 
   if (isLoading || !data) {
     return <DashboardSkeleton />
@@ -475,7 +487,7 @@ export default function DashboardPage() {
                         >
                           <span className="text-sm">💪</span>
                           <p className="text-xs text-ink">
-                            {recoveryRecommendationLabel(hasTrainedToday)}{' '}
+                            {recoveryRecommendationLabel(recoveryLabelPct)}{' '}
                             <span className="font-display tracked uppercase" style={{ color: recColor }}>
                               {recommendation.muscleGroup}
                             </span>{' '}
