@@ -626,7 +626,7 @@ function LogPageInner() {
                   type="number"
                   inputMode="decimal"
                   min={0}
-                  step="0.1"
+                  step="0.01"
                   value={distance}
                   onChange={(e) => setDistance(e.target.value)}
                   className="input font-mono text-center"
@@ -637,7 +637,7 @@ function LogPageInner() {
                   type="number"
                   inputMode="decimal"
                   min={0}
-                  step="1"
+                  step="0.01"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                   className="input font-mono text-center"
