@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
-import type { Workout } from '@/lib/types'
+import type { ProgramDay, Workout } from '@/lib/types'
 import { MUSCLE_GROUPS, VOLUME_MUSCLES } from '@/lib/muscle-groups'
 import { todayStr } from '@/lib/weekdays'
 import {
@@ -18,6 +18,7 @@ import {
   pushPullInsight,
   computeProgressiveOverload,
   computeAIDailySummary,
+  buildSkippedExerciseInsight,
   type PushPullBalance,
   type OverloadPlan,
 } from '@/lib/aiCoach'
@@ -41,6 +42,7 @@ interface CoachData {
   balance: PushPullBalance
   balanceInsights: Insight[]
   overloadPlans: OverloadPlan[]
+  skippedInsight: Insight | null
 }
 
 function topExerciseNames(rows: { exercise_name: string | null }[], limit: number): string[] {
@@ -116,7 +118,43 @@ export default function CoachPage() {
         allEntries.some((w) => w.performed_at?.slice(0, 10) === todayStr())
       )
 
-      setData({ dailySummary, balance, balanceInsights, overloadPlans })
+      // --- ท่าที่ข้ามไปในเซสชันโปรแกรมล่าสุด ---
+      let skippedInsight: Insight | null = null
+      const { data: lastCompletionRow } = await supabase
+        .from('program_completions')
+        .select('completed_at')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (lastCompletionRow) {
+        const lastDate = (lastCompletionRow as { completed_at: string }).completed_at
+        const lastDow = new Date(lastDate + 'T00:00:00').getDay()
+        const { data: dayRow } = await supabase
+          .from('program_days')
+          .select('*')
+          .eq('day_of_week', lastDow)
+          .maybeSingle()
+
+        if (dayRow) {
+          const typedDay = dayRow as ProgramDay
+          const [{ data: planRows }, { data: completionRows }] = await Promise.all([
+            supabase.from('program_exercises').select('id, exercise_name, muscle_group').eq('program_day_id', typedDay.id),
+            supabase.from('program_completions').select('program_exercise_id').eq('completed_at', lastDate),
+          ])
+          const completedIds = new Set(
+            ((completionRows as { program_exercise_id: string }[]) ?? []).map((c) => c.program_exercise_id)
+          )
+          skippedInsight = buildSkippedExerciseInsight(
+            typedDay.title,
+            lastDate,
+            (planRows as { id: string; exercise_name: string; muscle_group: string | null }[]) ?? [],
+            completedIds
+          )
+        }
+      }
+
+      setData({ dailySummary, balance, balanceInsights, overloadPlans, skippedInsight })
     } catch (err) {
       console.error('Coach page load failed', err)
       Sentry.captureException(err, { tags: { source: 'coach-page' } })
@@ -153,6 +191,8 @@ export default function CoachPage() {
             <span className="text-lg leading-none shrink-0">✨</span>
             <p className="text-sm text-ink">{data.dailySummary}</p>
           </div>
+
+          {data.skippedInsight && <InsightCard insight={data.skippedInsight} />}
 
           <section className="space-y-2.5">
             <h2 className="font-display text-sm tracked uppercase text-muted">สมดุล Push / Pull</h2>
