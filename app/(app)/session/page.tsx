@@ -10,6 +10,7 @@ import {
   initSessionSet,
   computeSessionSummary,
   aggregateMuscleLoads,
+  getSkippedExercises,
   type SessionSetState,
 } from '@/lib/workoutSession'
 import { estimateCaloriesToday } from '@/lib/dashboardStats'
@@ -287,11 +288,13 @@ export default function SessionPage() {
         .filter((s) => s.logged)
         .map((s) => ({ setsDone: s.setsDone, reps: s.reps, weightKg: s.weightKg }))
     )
+    const skipped = getSkippedExercises(exercises, states)
     const lines = [
       `🏋️ ${day?.title ?? 'Workout'} เสร็จแล้ว!`,
-      `⏱ ${formatClock(session.elapsedMs)} · ${summary.exerciseCount} ท่า · ${summary.totalSets} เซ็ต`,
+      `⏱ ${formatClock(session.elapsedMs)} · ${summary.exerciseCount}/${exercises.length} ท่า · ${summary.totalSets} เซ็ต`,
     ]
     if (summary.totalVolumeKg > 0) lines.push(`💪 วอลุ่มรวม ${Math.round(toDisplay(summary.totalVolumeKg)).toLocaleString()} ${unit}`)
+    if (skipped.length > 0) lines.push(`⏭️ ข้ามไป: ${skipped.map((s) => s.exerciseName).join(', ')}`)
     if (summaryExtras?.prs.length) {
       lines.push(`🏆 PR ใหม่: ${summaryExtras.prs[0].exerciseName} +${format(summaryExtras.prs[0].deltaKg)}`)
     }
@@ -338,6 +341,7 @@ export default function SessionPage() {
     const summary = computeSessionSummary(
       Object.values(states).filter((s) => s.logged).map((s) => ({ setsDone: s.setsDone, reps: s.reps, weightKg: s.weightKg }))
     )
+    const skipped = getSkippedExercises(exercises, states)
     return (
       <div className="space-y-5 text-center py-4">
         <p className="text-4xl">🎉</p>
@@ -348,7 +352,7 @@ export default function SessionPage() {
 
         <div className="grid grid-cols-3 gap-2">
           <SummaryCell label="เวลาที่ใช้" value={formatClock(session.elapsedMs)} />
-          <SummaryCell label="ท่าที่ทำ" value={String(summary.exerciseCount)} />
+          <SummaryCell label="ท่าที่ทำ" value={`${summary.exerciseCount}/${exercises.length}`} />
           <SummaryCell label="เซ็ตรวม" value={String(summary.totalSets)} />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -361,6 +365,14 @@ export default function SessionPage() {
             value={summaryLoading ? '…' : summaryExtras ? `${summaryExtras.calories} kcal` : '–'}
           />
         </div>
+
+        {skipped.length > 0 && (
+          <div className="rounded-lg bg-surface2 border border-line px-4 py-3 text-left space-y-1">
+            <p className="text-[10px] tracked uppercase text-muted">⏭️ ข้ามไป {skipped.length} ท่า</p>
+            <p className="text-xs text-ink">{skipped.map((s) => s.exerciseName).join(', ')}</p>
+            <p className="text-[11px] text-muted">ลองแทรกในเซสชันหน้าดูนะ</p>
+          </div>
+        )}
 
         {summaryExtras && summaryExtras.prs.length > 0 && (
           <div className="rounded-lg bg-surface2 border border-amber/30 px-4 py-3 text-left space-y-1">
