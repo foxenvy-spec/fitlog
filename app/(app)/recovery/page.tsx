@@ -36,7 +36,7 @@ export default function RecoveryPage() {
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<MuscleRow[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [hasTrainedToday, setHasTrainedToday] = useState(false)
+  const [progressPct, setProgressPct] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,7 +51,40 @@ export default function RecoveryPage() {
 
       const strengthRows = (data as { muscle_group: string | null; performed_at: string }[]) ?? []
       const today = todayStr()
-      setHasTrainedToday(strengthRows.some((r) => r.performed_at?.slice(0, 10) === today))
+      const trainedAnyToday = strengthRows.some((r) => r.performed_at?.slice(0, 10) === today)
+
+      // % ความคืบหน้าของแผนวันนี้ — เช็คแผนของวันนี้ (program_day ตาม day_of_week) แล้วเทียบจำนวนท่าที่ complete จริง
+      const dow = new Date(today + 'T00:00:00').getDay()
+      const { data: todayDayRows } = await supabase
+        .from('program_days')
+        .select('id')
+        .eq('day_of_week', dow)
+        .limit(1)
+      const todayDayId = todayDayRows?.[0]?.id ?? null
+
+      if (todayDayId) {
+        const { data: todayExRows } = await supabase
+          .from('program_exercises')
+          .select('id')
+          .eq('program_day_id', todayDayId)
+        const todayExerciseIds = (todayExRows as { id: string }[] | null)?.map((r) => r.id) ?? []
+
+        if (todayExerciseIds.length > 0) {
+          const { data: completions } = await supabase
+            .from('program_completions')
+            .select('program_exercise_id')
+            .eq('completed_at', today)
+            .in('program_exercise_id', todayExerciseIds)
+          const completedCount = completions?.length ?? 0
+          setProgressPct(Math.round((completedCount / todayExerciseIds.length) * 100))
+        } else {
+          // วันนี้มีแผนแต่ไม่มีท่ากำหนดไว้ (แผนว่าง) — ยึดตามมี set log ไว้อย่างน้อย 1 รายการ
+          setProgressPct(trainedAnyToday ? 100 : null)
+        }
+      } else {
+        // วันนี้ไม่มีแผนกำหนดไว้ (บันทึกอิสระ) — ยึดตามมี set log ไว้อย่างน้อย 1 รายการ
+        setProgressPct(trainedAnyToday ? 100 : null)
+      }
       const lastTrainedByMuscle: Record<string, string> = {}
       strengthRows.forEach((r) => {
         if (!r.muscle_group) return
@@ -101,7 +134,7 @@ export default function RecoveryPage() {
           >
             <span className="text-lg">💪</span>
             <p className="text-sm text-ink">
-              {recoveryRecommendationLabel(hasTrainedToday)}{' '}
+              {recoveryRecommendationLabel(progressPct)}{' '}
               <span className="font-display tracked uppercase" style={{ color: recColor }}>
                 {recommendation.muscleGroup}
               </span>{' '}
