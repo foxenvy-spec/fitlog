@@ -3,12 +3,21 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { getWeekRange } from '@/lib/dashboardStats'
+import { getWeekRange, volumeStatus, type VolumeStatus } from '@/lib/dashboardStats'
 import { computeWeeklyCardioVolume } from '@/lib/weeklyCardioVolume'
+import { fetchWeeklyCardioTargets } from '@/lib/weeklyCardioTargets'
 import { HR_ZONES, DEFAULT_MAX_HEART_RATE } from '@/lib/heartRate'
 import type { Workout, Profile } from '@/lib/types'
+import AnimatedBarFill from './AnimatedBarFill'
 import Skeleton from './Skeleton'
 import HeartRateSettings from './HeartRateSettings'
+import CardioTargetsSettings from './CardioTargetsSettings'
+
+const STATUS_COLOR: Record<VolumeStatus, string> = {
+  behind: '#C1503A', // rust — ตามหลัง
+  onTrack: '#E8A33D', // amber — กำลังไปได้ดี
+  met: '#7A9B57', // moss — ถึงเป้าหมายแล้ว (รวมถึงทำเกินเป้าด้วย)
+}
 
 function MetricTile({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
@@ -22,11 +31,40 @@ function MetricTile({ label, value, unit }: { label: string; value: string; unit
   )
 }
 
+function TargetProgressRow({ label, done, target, unit }: { label: string; done: number; target: number; unit: string }) {
+  const dayOfWeek1to7 = ((new Date().getDay() + 6) % 7) + 1
+  const status = volumeStatus(done, target, dayOfWeek1to7)
+  const color = STATUS_COLOR[status]
+  const pct = Math.min(100, target > 0 ? (done / target) * 100 : 0)
+  const diff = done - target
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-ink">{label}</span>
+        <span className="text-[11px] font-mono text-muted">
+          {done}
+          <span className="text-muted/60">
+            /{target} {unit}
+          </span>
+        </span>
+      </div>
+      <div className="relative h-2.5 rounded-full bg-surface2 overflow-hidden">
+        <AnimatedBarFill pct={pct} color={color} />
+      </div>
+      <p className="mt-1 text-[11px] font-mono" style={{ color }}>
+        {status === 'met' ? (diff > 0 ? `+${diff} ${unit}` : 'ถึงเป้าหมายพอดี') : `อีก ${target - done} ${unit} ถึงเป้าหมาย`}
+      </p>
+    </div>
+  )
+}
+
 export default function WeeklyCardioVolume() {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const { start, end } = getWeekRange()
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [hrSettingsOpen, setHrSettingsOpen] = useState(false)
+  const [targetsOpen, setTargetsOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['weekly-cardio-volume', start, end],
@@ -56,6 +94,14 @@ export default function WeeklyCardioVolume() {
     staleTime: 60_000,
   })
 
+  // เป้าหมายของผู้ใช้เอง (ตั้งได้ต่อคนใน weekly_volume_targets) — ถ้ายังไม่เคยตั้ง จะได้ค่า
+  // default กลับมาแทน (ดู lib/weeklyCardioTargets.ts)
+  const { data: targets, isLoading: loadingTargets } = useQuery({
+    queryKey: ['weekly-cardio-targets'],
+    queryFn: () => fetchWeeklyCardioTargets(supabase),
+    staleTime: 60_000,
+  })
+
   const volume = data?.volume
 
   return (
@@ -65,13 +111,22 @@ export default function WeeklyCardioVolume() {
           <p className="text-[10px] tracked uppercase text-muted">Weekly Cardio Volume</p>
           <p className="font-display text-base tracked uppercase text-ink mt-0.5">คาร์ดิโอสัปดาห์นี้</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          className="text-[11px] text-muted hover:text-ink border border-line rounded px-2 py-1 mt-0.5 shrink-0"
-        >
-          ชีพจรสูงสุด
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+          <button
+            type="button"
+            onClick={() => setTargetsOpen(true)}
+            className="text-[11px] text-muted hover:text-ink border border-line rounded px-2 py-1"
+          >
+            ตั้งเป้าหมาย
+          </button>
+          <button
+            type="button"
+            onClick={() => setHrSettingsOpen(true)}
+            className="text-[11px] text-muted hover:text-ink border border-line rounded px-2 py-1"
+          >
+            ชีพจรสูงสุด
+          </button>
+        </div>
       </div>
 
       <div className="px-4 pb-4">
@@ -88,6 +143,21 @@ export default function WeeklyCardioVolume() {
               <MetricTile label="Sessions" value={String(volume.sessions)} unit="ครั้ง" />
               <MetricTile label="Calories" value={volume.totalCalories.toLocaleString('th-TH')} unit="kcal" />
               <MetricTile label="Distance" value={volume.totalDistanceKm.toLocaleString('th-TH')} unit="กม." />
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              <p className="text-[10px] tracked uppercase text-muted">เป้าหมายสัปดาห์นี้</p>
+              {loadingTargets || !targets ? (
+                <>
+                  <Skeleton className="h-9 w-full rounded-md" />
+                  <Skeleton className="h-9 w-full rounded-md" />
+                </>
+              ) : (
+                <>
+                  <TargetProgressRow label="นาที" done={volume.totalMinutes} target={targets.minutes} unit="นาที" />
+                  <TargetProgressRow label="ครั้ง" done={volume.sessions} target={targets.sessions} unit="ครั้ง" />
+                </>
+              )}
             </div>
 
             <div className="mt-3">
@@ -137,14 +207,26 @@ export default function WeeklyCardioVolume() {
       </div>
 
       <HeartRateSettings
-        open={settingsOpen}
+        open={hrSettingsOpen}
         maxHeartRate={data?.maxHeartRate ?? DEFAULT_MAX_HEART_RATE}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => setHrSettingsOpen(false)}
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ['weekly-cardio-volume'] })
-          setSettingsOpen(false)
+          setHrSettingsOpen(false)
         }}
       />
+
+      {targets && (
+        <CardioTargetsSettings
+          open={targetsOpen}
+          targets={targets}
+          onClose={() => setTargetsOpen(false)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['weekly-cardio-targets'] })
+            setTargetsOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }
