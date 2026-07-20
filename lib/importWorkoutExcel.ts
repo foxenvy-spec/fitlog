@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { MUSCLE_GROUPS, type MuscleGroup } from './muscle-groups'
+import { MUSCLE_GROUPS, guessSecondaryMuscles, type MuscleGroup } from './muscle-groups'
 import { matchExercise, type ExerciseMatchType } from './exercises'
 import type { ExerciseDef } from './exerciseLibrary'
 
@@ -223,6 +223,14 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
     if (libMatch?.matchType === 'fuzzy') fuzzyMatchCount++
     if (!libMatch) noMatchCount++
 
+    const muscleGroup = libMatch?.exercise.muscleGroup ?? dayMuscleGuess
+    // ใช้กล้ามเนื้อรองจาก Exercise Library ก่อนถ้ามีคนกรอกไว้ — ถ้าไม่มี (หรือจับคู่ไม่เจอเลย)
+    // ให้เดาจากชื่อท่า/กลุ่มกล้ามเนื้อหลักแทน จะได้ไม่ว่างเปล่าไปเฉยๆ
+    const secondaryMuscles =
+      libMatch?.exercise.secondaryMuscles && libMatch.exercise.secondaryMuscles.length > 0
+        ? libMatch.exercise.secondaryMuscles
+        : guessSecondaryMuscles(exerciseName, muscleGroup)
+
     exercises.push({
       id: `${sheetName}-${r}`,
       name: exerciseName,
@@ -232,7 +240,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
       rpe,
       weight_kg: weightKg,
       notes: noteParts.length > 0 ? noteParts.join(' · ') : null,
-      muscleGroup: libMatch?.exercise.muscleGroup ?? dayMuscleGuess,
+      muscleGroup,
       include: true,
       targetRepsRaw: targetReps !== null && col.reps !== undefined && row[col.reps] != null ? String(row[col.reps]).trim() : null,
       targetRirRaw: col.rir !== undefined && row[col.rir] != null ? String(row[col.rir]).trim() : null,
@@ -240,7 +248,7 @@ function parseDaySheet(sheetName: string, rows: unknown[][], warnings: string[],
       rationale: rationale ? String(rationale).trim() : null,
       matchedExerciseId: libMatch?.exercise.id ?? null,
       matchConfidence: libMatch?.matchType ?? null,
-      secondaryMuscles: libMatch?.exercise.secondaryMuscles ?? [],
+      secondaryMuscles,
     })
   }
 
