@@ -112,11 +112,39 @@ export default function CoachPage() {
         .map((name) => computeProgressiveOverload(name, allEntries, exercises))
         .filter((p): p is OverloadPlan => p !== null)
 
-      const dailySummary = computeAIDailySummary(
-        recommendation,
-        balance,
-        allEntries.some((w) => w.performed_at?.slice(0, 10) === todayStr())
-      )
+      // --- % ความคืบหน้าของแผนวันนี้ (ใช้กับ dailySummary ด้านล่าง) ---
+      const today = todayStr()
+      const trainedAnyToday = allEntries.some((w) => w.performed_at?.slice(0, 10) === today)
+      const todayDow = new Date(today + 'T00:00:00').getDay()
+      const { data: todayDayRow } = await supabase
+        .from('program_days')
+        .select('id')
+        .eq('day_of_week', todayDow)
+        .maybeSingle()
+      const todayDayId = (todayDayRow as { id: string } | null)?.id ?? null
+
+      let todayProgressPct: number | null = null
+      if (todayDayId) {
+        const { data: todayExRows } = await supabase
+          .from('program_exercises')
+          .select('id')
+          .eq('program_day_id', todayDayId)
+        const todayExerciseIds = (todayExRows as { id: string }[] | null)?.map((r) => r.id) ?? []
+        if (todayExerciseIds.length > 0) {
+          const { data: todayCompletions } = await supabase
+            .from('program_completions')
+            .select('program_exercise_id')
+            .eq('completed_at', today)
+            .in('program_exercise_id', todayExerciseIds)
+          todayProgressPct = Math.round(((todayCompletions?.length ?? 0) / todayExerciseIds.length) * 100)
+        } else {
+          todayProgressPct = trainedAnyToday ? 100 : null
+        }
+      } else {
+        todayProgressPct = trainedAnyToday ? 100 : null
+      }
+
+      const dailySummary = computeAIDailySummary(recommendation, balance, todayProgressPct)
 
       // --- ท่าที่ข้ามไปในเซสชันโปรแกรมล่าสุด ---
       let skippedInsight: Insight | null = null
