@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getWeekRange, volumeStatus, type VolumeStatus } from '@/lib/dashboardStats'
 import { fetchWeeklyVolumeTargets } from '@/lib/weeklyVolumeTargets'
+import { todayDayOfWeek } from '@/lib/weekdays'
 import { MUSCLE_GROUP_COLORS, VOLUME_MUSCLES } from '@/lib/muscle-groups'
 import AnimatedBarFill from './AnimatedBarFill'
 import Skeleton from './Skeleton'
@@ -52,7 +53,7 @@ export default function WeeklyVolume() {
 
   const loading = loadingSets || loadingTargets || !targets
 
-  const dayOfWeek1to7 = ((new Date().getDay() + 6) % 7) + 1
+  const dayOfWeek1to7 = ((todayDayOfWeek() + 6) % 7) + 1
   const maxSets = targets
     ? Math.max(1, ...VOLUME_MUSCLES.map((mg) => setsByMuscle[mg] ?? 0), ...Object.values(targets))
     : 1
