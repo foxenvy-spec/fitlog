@@ -16,6 +16,13 @@ import { createClient } from '@/lib/supabase/client'
 import type { Workout } from '@/lib/types'
 import { MUSCLE_GROUP_COLORS } from '@/lib/muscle-groups'
 import { todayStr } from '@/lib/weekdays'
+import {
+  computeTodayTotals,
+  estimateCaloriesToday,
+  suggestNextPR,
+  type PRSuggestion,
+} from '@/lib/dashboardStats'
+import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
@@ -60,11 +67,17 @@ function repsOf(w: Workout, actualReps?: Map<string, number>) {
 export default function StatsPage() {
   const supabase = createClient()
   const { unit, toDisplay, format } = useWeightUnit()
+  const { data: exercises = [] } = useExerciseLibrary()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [actualRepsByWorkout, setActualRepsByWorkout] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [prs, setPrs] = useState<{ name: string; weight: number; reps: number | null; date: string }[]>([])
+  // น้ำหนักตัวล่าสุด — ใช้ประมาณแคลอรี่ (ดู estimateCaloriesToday) ถ้ายังไม่เคยบันทึกน้ำหนักตัว
+  // เลย ให้ fallback เป็น DEFAULT_BODYWEIGHT_KG เหมือนที่ dashboardStats.ts ใช้ที่อื่น
+  const [bodyWeightKg, setBodyWeightKg] = useState<number | null>(null)
+  // คำแนะนำเป้าหมายครั้งถัดไปของท่าที่ฝึกล่าสุด (ย้ายมาจาก dashboard)
+  const [nextPR, setNextPR] = useState<PRSuggestion | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -127,6 +140,45 @@ export default function StatsPage() {
     loadPRs()
   }, [supabase])
 
+  useEffect(() => {
+    async function loadBodyWeight() {
+      const { data } = await supabase
+        .from('body_metrics')
+        .select('weight_kg')
+        .order('measured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      setBodyWeightKg((data as { weight_kg: number | null } | null)?.weight_kg ?? null)
+    }
+    loadBodyWeight()
+  }, [supabase])
+
+  useEffect(() => {
+    async function loadNextPR() {
+      // ท่าล่าสุดที่ฝึก (เรียงจาก performed_at ล่าสุด) — ใช้แนะนำเป้าหมายครั้งถัดไปของท่านั้น
+      const { data } = await supabase
+        .from('workouts')
+        .select('exercise_name, performed_at')
+        .eq('type', 'strength')
+        .not('exercise_name', 'is', null)
+        .order('performed_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+      const lastExerciseName = (data?.[0] as { exercise_name: string | null } | undefined)?.exercise_name ?? null
+      if (!lastExerciseName) {
+        setNextPR(null)
+        return
+      }
+      const { data: history } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('type', 'strength')
+        .eq('exercise_name', lastExerciseName)
+      setNextPR(suggestNextPR(lastExerciseName, (history as Workout[]) ?? [], exercises))
+    }
+    loadNextPR()
+  }, [supabase, exercises])
+
   const days28 = useMemo(() => lastNDays(28), [])
 
   const distanceByDay = useMemo(() => {
@@ -175,8 +227,36 @@ export default function StatsPage() {
     const totalDistance = workouts.reduce((s, w) => s + (w.distance_km ?? 0), 0)
     const activeDays = new Set(workouts.map((w) => w.performed_at)).size
     const thisWeekVolume = weeklyVolume.length > 0 ? weeklyVolume[weeklyVolume.length - 1].value : 0
-    return { totalVolume, totalReps, strengthCount, cardioCount, totalDistance, activeDays, thisWeekVolume }
-  }, [workouts, weeklyVolume, actualRepsByWorkout])
+
+    // Duration/Calories คำนวณเป็นรายวัน (เหมือนที่ dashboard เคยทำกับ "วันนี้") แล้วรวมข้าม
+    // ทุกวันในช่วง — ใช้ computeTodayTotals/estimateCaloriesToday ตัวเดียวกัน ไม่ต้องคิดสูตรซ้ำ
+    const byDay = new Map<string, Workout[]>()
+    workouts.forEach((w) => {
+      const bucket = byDay.get(w.performed_at) ?? []
+      bucket.push(w)
+      byDay.set(w.performed_at, bucket)
+    })
+    let totalDurationMin = 0
+    let totalCalories = 0
+    byDay.forEach((dayWorkouts) => {
+      const dayTotals = computeTodayTotals(dayWorkouts)
+      totalDurationMin += dayTotals.durationMin ?? 0
+      totalCalories += estimateCaloriesToday(dayWorkouts, dayTotals.durationMin, bodyWeightKg)
+    })
+    const avgDurationMin = activeDays > 0 ? Math.round(totalDurationMin / activeDays) : 0
+
+    return {
+      totalVolume,
+      totalReps,
+      strengthCount,
+      cardioCount,
+      totalDistance,
+      activeDays,
+      thisWeekVolume,
+      totalCalories,
+      avgDurationMin,
+    }
+  }, [workouts, weeklyVolume, actualRepsByWorkout, bodyWeightKg])
 
   const muscleDistribution = useMemo(() => {
     const map = new Map<string, number>()
@@ -242,6 +322,8 @@ export default function StatsPage() {
         <StatCard label="วันที่ออกกำลังกาย" value={totals.activeDays.toString()} unit="วัน" accent="amber" />
         <StatCard label="เซสชันเวท" value={totals.strengthCount.toString()} unit="ครั้ง" accent="steel" />
         <StatCard label="ระยะทางคาร์ดิโอรวม" value={totals.totalDistance.toFixed(1)} unit="กม." accent="rust" />
+        <StatCard label="แคลอรี่ที่เผาผลาญรวม" value={totals.totalCalories.toLocaleString()} unit="kcal" accent="amber" />
+        <StatCard label="เวลาเฉลี่ย/วัน" value={totals.avgDurationMin.toString()} unit="นาที" accent="steel" />
       </div>
 
       <section>
@@ -365,6 +447,35 @@ export default function StatsPage() {
             </p>
           )}
           <p className="text-[11px] text-muted mt-2">คำนวณด้วยสูตร Epley: น้ำหนัก × (1 + reps/30) — เป็นค่าประมาณ ไม่ใช่ค่าวัดจริง</p>
+        </section>
+      )}
+
+      {nextPR && (
+        <section>
+          <h2 className="font-display text-sm tracked uppercase text-muted mb-3">🎯 Next PR แนะนำ</h2>
+          <a
+            href={`/exercises/${encodeURIComponent(nextPR.exerciseName)}`}
+            className="block rounded-lg bg-surface border border-line px-5 py-5 active:bg-surface2 transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-display text-base tracked uppercase text-ink">{nextPR.exerciseName}</p>
+              <span className="text-muted text-xs">โปรไฟล์ท่า →</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] tracked uppercase text-muted">Last</p>
+                <p className="font-mono text-base text-muted">
+                  {format(nextPR.lastWeight)} × {nextPR.lastReps}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] tracked uppercase text-muted">Target</p>
+                <p className="font-mono text-base text-amber">
+                  {format(nextPR.targetWeight)} × {nextPR.targetReps}
+                </p>
+              </div>
+            </div>
+          </a>
         </section>
       )}
 
