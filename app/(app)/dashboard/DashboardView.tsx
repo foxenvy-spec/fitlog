@@ -12,7 +12,6 @@ import {
   computeTodayTotals,
   computeRecoveryPct,
   recoveryStatusColor,
-  computeRecoveryReadyInHours,
   estimateCaloriesToday,
   findNextProgramDay,
   suggestNextPR,
@@ -82,6 +81,8 @@ interface DashboardData {
   lastWorkoutDate: string | null
   lastWorkoutTitle: string | null
   lastWorkoutDurationMin: number | null
+  lastWorkoutVolumeKg: number
+  lastWorkoutCalories: number
   bodyWeightKg: number | null
   insights: Insight[]
   aiDailySummary: string
@@ -217,6 +218,7 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>, exe
   // การ์ด "Today's Workout" ด้านบน) ถ้าวันนั้นไม่มีโปรแกรมตรงกัน ถือว่าเป็นการบันทึกอิสระ
   const lastWorkoutEntries = (lastWorkoutRows as Workout[]) ?? []
   const lastWorkoutTotals = computeTodayTotals(lastWorkoutEntries)
+  const lastWorkoutCalories = estimateCaloriesToday(lastWorkoutEntries, lastWorkoutTotals.durationMin, bodyWeightKg)
   const lastWorkoutDow = lastWorkoutDate ? new Date(lastWorkoutDate + 'T00:00:00').getDay() : null
   const lastWorkoutProgramDay =
     lastWorkoutDow !== null ? typedDays.find((d) => d.day_of_week === lastWorkoutDow) ?? null : null
@@ -262,6 +264,8 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>, exe
     lastWorkoutDate,
     lastWorkoutTitle,
     lastWorkoutDurationMin: lastWorkoutTotals.durationMin,
+    lastWorkoutVolumeKg: lastWorkoutTotals.volumeKg,
+    lastWorkoutCalories,
     bodyWeightKg,
     insights,
     aiDailySummary,
@@ -328,10 +332,6 @@ export default function DashboardPage() {
     const remaining = [...data.todayExercises].sort((a, b) => a.position - b.position).find((e) => !done.has(e.id))
     return remaining?.exercise_name ?? null
   }, [data])
-  const calories = useMemo(
-    () => estimateCaloriesToday(data?.todayWorkouts ?? [], totals.durationMin, data?.bodyWeightKg ?? null),
-    [data?.todayWorkouts, totals.durationMin, data?.bodyWeightKg]
-  )
   const workoutTitle = scheduledDay?.title ?? ((data?.todayWorkouts.length ?? 0) > 0 ? 'บันทึกอิสระ' : null)
   // % ความคืบหน้าที่ใช้กับข้อความแนะนำกล้ามเนื้อ (recoveryRecommendationLabel) — เหมือน progressPct
   // ของ ring ด้านบน แต่ถ้าวันนี้ไม่มีแผนกำหนดไว้ (บันทึกอิสระ) ให้ถือว่า 100% เมื่อมี log อย่างน้อย 1 รายการ
@@ -347,30 +347,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-lg bg-surface border border-line overflow-hidden">
-        {/* greeting + streak */}
-        <div className="px-4 pt-4 pb-3.5 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted">👋 {greetingText}</p>
-            <p className="font-display text-lg tracked uppercase text-ink mt-0.5">
-              {data.profileDisplayName || emailDisplayName(data.email)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="ปรับแต่ง Dashboard"
-            className="shrink-0 text-muted hover:text-amber transition p-1 -mr-1 -mt-1"
-          >
-            ⚙️
-          </button>
+    <div className="space-y-6">
+      {/* greeting + settings */}
+      <div className="flex items-start justify-between gap-3 px-1">
+        <div>
+          <p className="text-xs text-muted">👋 {greetingText}</p>
+          <p className="font-display text-lg tracked uppercase text-ink mt-0.5">
+            {data.profileDisplayName || emailDisplayName(data.email)}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="ปรับแต่ง Dashboard"
+          className="shrink-0 text-muted hover:text-amber transition p-1 -mr-1 -mt-1"
+        >
+          ⚙️
+        </button>
+      </div>
 
-        <Divider />
-
-        {/* today's workout */}
-        <div className="px-4 py-3.5">
+      {/* card 1: today's workout */}
+      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="px-5 py-5">
           <p className="text-[10px] tracked uppercase text-muted">Today&apos;s Workout</p>
           <div className="flex items-center justify-between gap-2 mt-0.5">
             <p className="font-display text-lg tracked uppercase text-ink truncate">
@@ -434,11 +432,114 @@ export default function DashboardPage() {
             </p>
           ) : null}
         </div>
+      </div>
 
-        <Divider />
+      {/* card 2: recovery */}
+      {prefs.showRecovery && (
+        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+          <a href="/recovery" className="block px-5 py-5 active:bg-surface2 transition">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] tracked uppercase text-muted">Recovery</p>
+            </div>
 
-        {/* weekly goal */}
-        <div className="px-4 pt-3.5 pb-3.5">
+            {(() => {
+              const recoveryPctMap: Record<string, number> = {}
+              RECOVERY_MUSCLES.forEach((mg) => {
+                recoveryPctMap[mg] = computeRecoveryPct(data.recoveryDates[mg] ?? null, mg)
+              })
+              const recommendation = suggestMuscleToTrain(recoveryPctMap)
+              return (
+                <>
+                  {recommendation &&
+                    (() => {
+                      const recColor = recoveryStatusColor(recommendation.pct)
+                      return (
+                        <div
+                          className="flex items-center gap-2 rounded-md px-2.5 py-2 mb-3"
+                          style={{ backgroundColor: recColor + '1A' }}
+                        >
+                          <span className="text-sm">💪</span>
+                          <p className="text-xs text-ink whitespace-pre-line">
+                            {recoveryRecommendationLabel(recoveryLabelPct)}{' '}
+                            <span className="font-display tracked uppercase" style={{ color: recColor }}>
+                              {recommendation.muscleGroup}
+                            </span>{' '}
+                            <span className="text-muted">— ฟื้นตัวแล้ว {recommendation.pct}%</span>
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  <div className="grid grid-cols-2 gap-2">
+                    {RECOVERY_MUSCLES.map((mg) => {
+                      const pct = recoveryPctMap[mg]
+                      const color = recoveryStatusColor(pct)
+                      return (
+                        <div
+                          key={mg}
+                          className="flex items-center justify-between gap-2 rounded-md bg-surface2 px-2.5 py-2"
+                        >
+                          <span className="flex items-center gap-1.5 text-xs text-ink">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                            {mg}
+                          </span>
+                          <span className="font-mono text-xs shrink-0" style={{ color }}>
+                            {pct}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-3 text-right text-xs text-amber">View Detail →</p>
+                </>
+              )
+            })()}
+          </a>
+        </div>
+      )}
+
+      {/* card 3: recent workout */}
+      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="px-5 py-5">
+          <p className="text-[10px] tracked uppercase text-muted mb-1">Recent Workout</p>
+          {data.lastWorkoutDate ? (
+            <>
+              <p className="text-sm text-ink">
+                {data.lastWorkoutTitle}
+                <span className="text-muted">
+                  {' • '}
+                  {relativeDayLabel(data.lastWorkoutDate)}
+                </span>
+              </p>
+              <div className="flex items-center gap-4 flex-wrap mt-2.5">
+                <StatRow icon="🕒" value={data.lastWorkoutDurationMin !== null ? `${data.lastWorkoutDurationMin} min` : '–'} />
+                {prefs.showCalories && (
+                  <StatRow icon="🔥" value={data.lastWorkoutCalories > 0 ? `${data.lastWorkoutCalories} kcal` : '–'} />
+                )}
+                <StatRow
+                  icon="🏋️"
+                  value={
+                    data.lastWorkoutVolumeKg > 0
+                      ? `${Math.round(toDisplay(data.lastWorkoutVolumeKg)).toLocaleString('th-TH')} ${unit}`
+                      : '–'
+                  }
+                />
+                {prefs.showBodyWeight && data.bodyWeightKg !== null && (
+                  <StatRow
+                    icon="⚖️"
+                    value={`${toDisplay(data.bodyWeightKg).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ${unit}`}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="text-[11px] text-muted">ยังไม่มีประวัติ</p>
+          )}
+        </div>
+      </div>
+
+      {/* card 4: weekly goal */}
+      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="px-5 py-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] tracked uppercase text-muted">Weekly Goal</p>
             <span className="font-mono text-xs text-ink">{data.weeklyGoalPct}%</span>
@@ -457,124 +558,25 @@ export default function DashboardPage() {
             🔥 <span className="text-ink font-mono">{data.streak}</span> Day Streak
           </p>
         </div>
-
-        <Divider />
-
-        {/* today's stats — duration/volume always shown, calories/weight are per prefs */}
-        <div className="px-4 py-3.5">
-          <p className="text-[10px] tracked uppercase text-muted mb-2">Today</p>
-          <div className="flex items-center gap-4 flex-wrap">
-            <StatRow icon="🕒" value={totals.durationMin !== null ? `${totals.durationMin} min` : '–'} />
-            {prefs.showCalories && <StatRow icon="🔥" value={calories > 0 ? `${calories} kcal` : '–'} />}
-            <StatRow
-              icon="🏋️"
-              value={
-                totals.volumeKg > 0
-                  ? `${Math.round(toDisplay(totals.volumeKg)).toLocaleString('th-TH')} ${unit}`
-                  : '–'
-              }
-            />
-            {prefs.showBodyWeight && data.bodyWeightKg !== null && (
-              <StatRow
-                icon="⚖️"
-                value={`${toDisplay(data.bodyWeightKg).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ${unit}`}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* recovery */}
-        {prefs.showRecovery && (
-          <>
-            <Divider />
-            <a href="/recovery" className="block px-4 py-3.5 active:bg-surface2 transition">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] tracked uppercase text-muted">Recovery</p>
-                <span className="text-muted text-xs">ดูทั้งหมด →</span>
-              </div>
-
-              {(() => {
-                const recoveryPctMap: Record<string, number> = {}
-                RECOVERY_MUSCLES.forEach((mg) => {
-                  recoveryPctMap[mg] = computeRecoveryPct(data.recoveryDates[mg] ?? null, mg)
-                })
-                const recommendation = suggestMuscleToTrain(recoveryPctMap)
-                return (
-                  <>
-                    {recommendation && (() => {
-                      const recColor = recoveryStatusColor(recommendation.pct)
-                      return (
-                        <div
-                          className="flex items-center gap-2 rounded-md px-2.5 py-2 mb-2.5"
-                          style={{ backgroundColor: recColor + '1A' }}
-                        >
-                          <span className="text-sm">💪</span>
-                          <p className="text-xs text-ink whitespace-pre-line">
-                            {recoveryRecommendationLabel(recoveryLabelPct)}{' '}
-                            <span className="font-display tracked uppercase" style={{ color: recColor }}>
-                              {recommendation.muscleGroup}
-                            </span>{' '}
-                            <span className="text-muted">— ฟื้นตัวแล้ว {recommendation.pct}%</span>
-                          </p>
-                        </div>
-                      )
-                    })()}
-                    <div className="space-y-1.5">
-                      {RECOVERY_MUSCLES.map((mg) => {
-                        const pct = recoveryPctMap[mg]
-                        const color = recoveryStatusColor(pct)
-                        const hoursLeft = computeRecoveryReadyInHours(data.recoveryDates[mg] ?? null, mg)
-                        return (
-                          <div key={mg} className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2.5">
-                              <span className="w-16 shrink-0 text-xs text-muted">{mg}</span>
-                              <div
-                                className="flex-1 h-2 rounded-full bg-surface2 overflow-hidden"
-                                role="progressbar"
-                                aria-valuenow={pct}
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-label={`ระดับการฟื้นตัวของ${mg}`}
-                              >
-                                <AnimatedBarFill pct={pct} color={color} />
-                              </div>
-                              <span className="w-9 shrink-0 text-[10px] font-mono text-right" style={{ color }}>
-                                {pct}%
-                              </span>
-                            </div>
-                            <p className="pl-[4.625rem] text-[9px] text-muted">
-                              {hoursLeft !== null ? `พร้อมฝึกในอีก ~${hoursLeft} ชม.` : 'พร้อมฝึกได้เลย'}
-                            </p>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </>
-                )
-              })()}
-            </a>
-          </>
-        )}
-
-        {/* AI coach */}
-        {prefs.showAICoach && (
-          <>
-            <Divider />
-            <a href="/coach" className="block px-4 py-3.5 active:bg-surface2 transition">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] tracked uppercase text-muted">✨ AI Coach</p>
-                <span className="text-muted text-xs">ดูรายละเอียด →</span>
-              </div>
-              <p className="text-xs text-ink whitespace-pre-line">{data.aiDailySummary}</p>
-            </a>
-          </>
-        )}
       </div>
+
+      {/* card 5 (optional): AI coach */}
+      {prefs.showAICoach && (
+        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+          <a href="/coach" className="block px-5 py-5 active:bg-surface2 transition">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] tracked uppercase text-muted">✨ AI Coach</p>
+              <span className="text-muted text-xs">ดูรายละเอียด →</span>
+            </div>
+            <p className="text-xs text-ink whitespace-pre-line">{data.aiDailySummary}</p>
+          </a>
+        </div>
+      )}
 
       <WorkoutHeatmap />
 
-      {/* Next PR / Last Workout / Next up in program — moved below the heatmap so the
-          hero card above stays focused on "what do I do now" (workout, goal, recovery, coach) */}
+      {/* Next PR / Next up in program — below the heatmap so the hero cards above
+          stay focused on "what do I do now" (workout, recovery, recent workout, goal) */}
       <div className="rounded-lg bg-surface border border-line overflow-hidden">
         {prefs.showPR && (
           <>
@@ -617,30 +619,10 @@ export default function DashboardPage() {
           </>
         )}
 
-        {prefs.showPR && <Divider />}
-
-        {/* last workout */}
-        <div className="px-4 py-3.5">
-          <p className="text-[10px] tracked uppercase text-muted">Last Workout</p>
-          <p className="text-sm text-ink mt-0.5">
-            {data.lastWorkoutDate ? (
-              <>
-                {data.lastWorkoutTitle}
-                <span className="text-muted">
-                  {' • '}
-                  {relativeDayLabel(data.lastWorkoutDate)}
-                  {data.lastWorkoutDurationMin !== null && <> • {data.lastWorkoutDurationMin} นาที</>}
-                </span>
-              </>
-            ) : (
-              'ยังไม่มีประวัติ'
-            )}
-          </p>
-        </div>
+        {prefs.showPR && next && <Divider />}
 
         {next && (
           <>
-            <Divider />
             <div className="px-4 py-3 flex items-center justify-between">
               <p className="text-[11px] text-muted">
                 Next up: <span className="text-ink">{next.day.title}</span>
