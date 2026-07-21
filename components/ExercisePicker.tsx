@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { searchExercises, type ExerciseDef } from '@/lib/exercises'
+import { equipmentLabel } from '@/lib/exerciseLibrary'
 import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_COLORS, muscleGroupLabel, type MuscleGroup, type MuscleLabelLang } from '@/lib/muscle-groups'
 import { loadMuscleLabelLang, saveMuscleLabelLang } from '@/lib/muscleLabelPrefs'
@@ -120,7 +121,7 @@ export default function ExercisePicker({ value, onChange, onSelect, placeholder 
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm text-ink truncate">{ex.name}</span>
-                      <span className="block text-[11px] text-muted truncate">{ex.equipment}</span>
+                      <span className="block text-[11px] text-muted truncate">{equipmentLabel(ex.equipment)}</span>
                     </span>
                     <span
                       className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border"
