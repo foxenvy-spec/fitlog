@@ -103,12 +103,21 @@ export default function ExercisePicker({ value, onChange, onSelect, placeholder 
                     onClick={() => handlePick(ex)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-surface transition"
                   >
-                    <span
-                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs"
-                      style={{ backgroundColor: MUSCLE_GROUP_COLORS[ex.muscleGroup] + '33' }}
-                    >
-                      {ex.icon}
-                    </span>
+                    {ex.imageUrl ? (
+                      <img
+                        src={ex.imageUrl}
+                        alt={ex.nameTh}
+                        loading="lazy"
+                        className="shrink-0 w-9 h-9 rounded-md object-cover bg-panel"
+                      />
+                    ) : (
+                      <span
+                        className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center text-sm"
+                        style={{ backgroundColor: MUSCLE_GROUP_COLORS[ex.muscleGroup] + '33' }}
+                      >
+                        {ex.icon}
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm text-ink truncate">{ex.name}</span>
                       <span className="block text-[11px] text-muted truncate">{ex.nameTh}</span>
