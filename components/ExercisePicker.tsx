@@ -73,8 +73,8 @@ export default function ExercisePicker({ value, onChange, onSelect, placeholder 
       {open && (
         <div className="absolute z-30 mt-1.5 w-full rounded-lg bg-surface2 border border-line shadow-lg overflow-hidden">
           {!showSearch && (
-            <div className="flex items-center gap-1.5 px-2 pt-2 pb-1.5">
-              <div className="flex gap-1 overflow-x-auto no-scrollbar flex-1">
+            <div className="px-2 pt-2 pb-1.5 space-y-1.5">
+              <div className="flex gap-1 overflow-x-auto no-scrollbar">
                 <MuscleTab active={browseMuscle === null} onClick={() => setBrowseMuscle(null)} label="ทั้งหมด" />
                 {MUSCLE_GROUPS.map((mg) => (
                   <MuscleTab
@@ -86,7 +86,9 @@ export default function ExercisePicker({ value, onChange, onSelect, placeholder 
                   />
                 ))}
               </div>
-              <MuscleLangToggle lang={lang} onChange={updateLang} />
+              <div className="flex justify-end">
+                <MuscleLangToggle lang={lang} onChange={updateLang} />
+              </div>
             </div>
           )}
 
