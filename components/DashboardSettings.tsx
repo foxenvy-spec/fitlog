@@ -9,10 +9,7 @@ interface ToggleDef {
 }
 
 const TOGGLES: ToggleDef[] = [
-  { key: 'showCalories', label: 'Calories' },
   { key: 'showRecovery', label: 'Recovery' },
-  { key: 'showBodyWeight', label: 'Weight' },
-  { key: 'showPR', label: 'Next PR' },
   { key: 'showAICoach', label: 'AI Coach' },
 ]
 
