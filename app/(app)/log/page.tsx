@@ -13,6 +13,7 @@ import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import LoadingState from '@/components/LoadingState'
 import SetEntryList, { newSetRow, type SetRow } from '@/components/SetEntryList'
 import ImportCardioPhoto from '@/components/ImportCardioPhotoGemini'
+import MuscleDiagram from '@/components/MuscleDiagram'
 import { computePaceSpeed, formatPace } from '@/lib/cardioPace'
 import { classifyHRZone, HR_ZONES, DEFAULT_MAX_HEART_RATE } from '@/lib/heartRate'
 
@@ -79,6 +80,7 @@ function LogPageInner() {
 
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>([])
   const [exerciseLibraryId, setExerciseLibraryId] = useState<string | null>(null)
+  const [highlighterMuscles, setHighlighterMuscles] = useState<string[]>([])
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -198,6 +200,10 @@ function LogPageInner() {
         setSecondaryMuscles(match?.secondaryMuscles ?? [])
       }
       setExerciseLibraryId(w.exercise_library_id ?? null)
+      const known =
+        (w.exercise_library_id ? exercises.find((e) => e.id === w.exercise_library_id) : null) ??
+        (w.exercise_name ? findExerciseByName(exercises, w.exercise_name) : null)
+      setHighlighterMuscles(known?.highlighterMuscles ?? [])
       setRpe(w.rpe !== null ? String(w.rpe) : '')
       const rows = await buildRowsFromWorkout(w)
       // เซ็ตพวกนี้ทำเสร็จไปแล้วจริง (มาจากรายการที่บันทึกแล้ว) — ติ๊ก done ให้เลย
@@ -218,6 +224,7 @@ function LogPageInner() {
       setMuscleGroup('')
       setSecondaryMuscles([])
       setExerciseLibraryId(null)
+      setHighlighterMuscles([])
       setSetRows([])
       setRpe('')
     }
@@ -236,6 +243,7 @@ function LogPageInner() {
     setMuscleGroup('')
     setSecondaryMuscles([])
     setExerciseLibraryId(null)
+    setHighlighterMuscles([])
     setSetRows([])
     setRpe('')
     setCardioType('')
@@ -407,6 +415,7 @@ function LogPageInner() {
     setMuscleGroup(ex.muscleGroup)
     setSecondaryMuscles(ex.secondaryMuscles)
     setExerciseLibraryId(ex.id)
+    setHighlighterMuscles(ex.highlighterMuscles)
     loadLastEntry(ex.name)
   }
 
@@ -425,6 +434,10 @@ function LogPageInner() {
       setMuscleGroup(last.muscle_group ?? '')
       setSecondaryMuscles(last.secondary_muscles ?? [])
       setExerciseLibraryId(last.exercise_library_id ?? null)
+      const known =
+        (last.exercise_library_id ? exercises.find((e) => e.id === last.exercise_library_id) : null) ??
+        (last.exercise_name ? findExerciseByName(exercises, last.exercise_name) : null)
+      setHighlighterMuscles(known?.highlighterMuscles ?? [])
       setRpe(last.rpe !== null ? String(last.rpe) : '')
       setSetRows(await buildRowsFromWorkout(last))
     } else {
@@ -531,13 +544,20 @@ function LogPageInner() {
                     setMuscleGroup(match.muscleGroup)
                     setSecondaryMuscles(match.secondaryMuscles)
                     setExerciseLibraryId(match.id)
+                    setHighlighterMuscles(match.highlighterMuscles)
                   } else {
                     // ชื่อไม่ตรงกับท่าไหนใน Library แล้ว — เคลียร์ FK เดิมทิ้ง กันชี้ไปท่าอื่นผิดๆ
                     setExerciseLibraryId(null)
+                    setHighlighterMuscles([])
                   }
                 }}
                 onSelect={handleExerciseSelect}
               />
+              {highlighterMuscles.length > 0 && (
+                <div className="mt-2 rounded-xl bg-panel flex items-center justify-center py-2">
+                  <MuscleDiagram exerciseName={exerciseName} highlighterMuscles={highlighterMuscles} />
+                </div>
+              )}
               {secondaryMuscles.length > 0 && (
                 <p className="mt-1.5 text-[11px] text-muted">
                   กล้ามเนื้อรอง:{' '}
