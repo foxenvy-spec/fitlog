@@ -8,6 +8,7 @@ import { computeWeeklyCardioVolume } from '@/lib/weeklyCardioVolume'
 import { fetchWeeklyCardioTargets } from '@/lib/weeklyCardioTargets'
 import { HR_ZONES, DEFAULT_MAX_HEART_RATE } from '@/lib/heartRate'
 import type { Workout, Profile } from '@/lib/types'
+import { todayDayOfWeek } from '@/lib/weekdays'
 import AnimatedBarFill from './AnimatedBarFill'
 import Skeleton from './Skeleton'
 import HeartRateSettings from './HeartRateSettings'
@@ -32,7 +33,7 @@ function MetricTile({ label, value, unit }: { label: string; value: string; unit
 }
 
 function TargetProgressRow({ label, done, target, unit }: { label: string; done: number; target: number; unit: string }) {
-  const dayOfWeek1to7 = ((new Date().getDay() + 6) % 7) + 1
+  const dayOfWeek1to7 = ((todayDayOfWeek() + 6) % 7) + 1
   const status = volumeStatus(done, target, dayOfWeek1to7)
   const color = STATUS_COLOR[status]
   const pct = Math.min(100, target > 0 ? (done / target) * 100 : 0)
