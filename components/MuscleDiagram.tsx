@@ -21,7 +21,7 @@ export default function MuscleDiagram({ exerciseName, highlighterMuscles }: Musc
 
   return (
     <div className="flex justify-center">
-      <Model data={data} colors={['#E8A33D', '#C1503A']} style={{ width: '10rem' }} />
+      <Model data={data} highlightedColors={['#E8A33D', '#C1503A']} style={{ width: '10rem' }} />
     </div>
   )
 }
