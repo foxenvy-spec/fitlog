@@ -34,7 +34,6 @@ import type { ExerciseDef } from '@/lib/exerciseLibrary'
 import { computePushPullBalance, computeAIDailySummary } from '@/lib/aiCoach'
 import { VOLUME_MUSCLES, RECOVERY_MUSCLES } from '@/lib/muscle-groups'
 import { DEFAULT_DASHBOARD_PREFS, loadDashboardPrefs, saveDashboardPrefs, type DashboardPrefs } from '@/lib/dashboardPrefs'
-import GoalRing from '@/components/GoalRing'
 import AnimatedBarFill from '@/components/AnimatedBarFill'
 import DashboardSkeleton from '@/components/DashboardSkeleton'
 import InsightCard from '@/components/InsightCard'
@@ -54,19 +53,6 @@ const WeeklyCardioVolume = dynamic(() => import('@/components/WeeklyCardioVolume
   loading: () => <Skeleton className="h-56 w-full rounded-lg" />,
 })
 const DashboardSettings = dynamic(() => import('@/components/DashboardSettings'), { ssr: false })
-
-const GRID_COLS: Record<number, string> = {
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-}
-
-function statCells(prefs: DashboardPrefs, bodyWeightKg: number | null) {
-  const cells = ['volume', 'duration']
-  if (prefs.showCalories) cells.push('calories')
-  if (prefs.showBodyWeight && bodyWeightKg !== null) cells.push('weight')
-  return cells
-}
 
 function greeting() {
   const h = new Date().getHours()
@@ -346,8 +332,6 @@ export default function DashboardPage() {
     () => estimateCaloriesToday(data?.todayWorkouts ?? [], totals.durationMin, data?.bodyWeightKg ?? null),
     [data?.todayWorkouts, totals.durationMin, data?.bodyWeightKg]
   )
-  const cells = useMemo(() => statCells(prefs, data?.bodyWeightKg ?? null), [prefs, data?.bodyWeightKg])
-
   const workoutTitle = scheduledDay?.title ?? ((data?.todayWorkouts.length ?? 0) > 0 ? 'บันทึกอิสระ' : null)
   // % ความคืบหน้าที่ใช้กับข้อความแนะนำกล้ามเนื้อ (recoveryRecommendationLabel) — เหมือน progressPct
   // ของ ring ด้านบน แต่ถ้าวันนี้ไม่มีแผนกำหนดไว้ (บันทึกอิสระ) ให้ถือว่า 100% เมื่อมี log อย่างน้อย 1 รายการ
@@ -453,43 +437,51 @@ export default function DashboardPage() {
 
         <Divider />
 
-        {/* weekly goal / streak / volume hero */}
+        {/* weekly goal */}
         <div className="px-4 pt-3.5 pb-3.5">
-          <p className="text-[10px] tracked uppercase text-muted mb-2">Weekly Goal</p>
-          <div className="flex items-center gap-4">
-            <GoalRing pct={data.weeklyGoalPct} size={52} strokeWidth={6} ariaLabel="Weekly Goal" />
-            <div className="flex-1 grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[10px] tracked uppercase text-muted">Streak</p>
-                <p className="font-mono text-lg text-ink mt-0.5">
-                  {data.streak} <span className="text-muted text-xs font-body">วัน</span>
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] tracked uppercase text-muted">Volume</p>
-                <p className="font-mono text-lg text-ink mt-0.5">
-                  {totals.volumeKg > 0 ? Math.round(toDisplay(totals.volumeKg)).toLocaleString('th-TH') : '–'}
-                  <span className="text-muted text-xs font-body"> {unit}</span>
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] tracked uppercase text-muted">Weekly Goal</p>
+            <span className="font-mono text-xs text-ink">{data.weeklyGoalPct}%</span>
           </div>
+          <div
+            className="h-2 rounded-full bg-surface2 overflow-hidden"
+            role="progressbar"
+            aria-valuenow={data.weeklyGoalPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Weekly Goal"
+          >
+            <AnimatedBarFill pct={data.weeklyGoalPct} color="#E8A33D" />
+          </div>
+          <p className="text-[11px] text-muted mt-2">
+            🔥 <span className="text-ink font-mono">{data.streak}</span> Day Streak
+          </p>
         </div>
 
-        {(prefs.showCalories || (prefs.showBodyWeight && data.bodyWeightKg !== null)) && (
-          <>
-            <Divider />
-            <div className={`grid ${GRID_COLS[cells.length - 1] ?? 'grid-cols-2'} divide-x divide-line`}>
-              <StatCell label="Duration" value={totals.durationMin !== null ? `${totals.durationMin}` : '–'} unit="นาที" />
-              {prefs.showCalories && (
-                <StatCell label="Calories" value={calories > 0 ? String(calories) : '–'} unit="kcal" />
-              )}
-              {prefs.showBodyWeight && data.bodyWeightKg !== null && (
-                <StatCell label="Weight" value={toDisplay(data.bodyWeightKg).toLocaleString('th-TH', { maximumFractionDigits: 1 })} unit={unit} />
-              )}
-            </div>
-          </>
-        )}
+        <Divider />
+
+        {/* today's stats — duration/volume always shown, calories/weight are per prefs */}
+        <div className="px-4 py-3.5">
+          <p className="text-[10px] tracked uppercase text-muted mb-2">Today</p>
+          <div className="flex items-center gap-4 flex-wrap">
+            <StatRow icon="🕒" value={totals.durationMin !== null ? `${totals.durationMin} min` : '–'} />
+            {prefs.showCalories && <StatRow icon="🔥" value={calories > 0 ? `${calories} kcal` : '–'} />}
+            <StatRow
+              icon="🏋️"
+              value={
+                totals.volumeKg > 0
+                  ? `${Math.round(toDisplay(totals.volumeKg)).toLocaleString('th-TH')} ${unit}`
+                  : '–'
+              }
+            />
+            {prefs.showBodyWeight && data.bodyWeightKg !== null && (
+              <StatRow
+                icon="⚖️"
+                value={`${toDisplay(data.bodyWeightKg).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ${unit}`}
+              />
+            )}
+          </div>
+        </div>
 
         {/* recovery */}
         {prefs.showRecovery && (
@@ -698,13 +690,14 @@ function Divider() {
   return <div className="border-t border-line" />
 }
 
-function StatCell({ label, value, unit }: { label: string; value: string; unit: string }) {
+function StatRow({ icon, value }: { icon: string; value: string }) {
   return (
-    <div className="px-3 py-3 text-center">
-      <p className="text-[10px] tracked uppercase text-muted">{label}</p>
-      <p className="font-mono text-xl text-ink mt-0.5">{value}</p>
-      <p className="text-[10px] text-muted">{unit}</p>
-    </div>
+    <span className="flex items-center gap-1.5 font-mono text-sm text-ink">
+      <span className="text-xs" aria-hidden="true">
+        {icon}
+      </span>
+      {value}
+    </span>
   )
 }
 
