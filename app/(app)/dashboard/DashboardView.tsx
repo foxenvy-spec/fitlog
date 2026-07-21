@@ -528,9 +528,9 @@ export default function DashboardPage() {
                                 {pct}%
                               </span>
                             </div>
-                            {hoursLeft !== null && (
-                              <p className="pl-[4.625rem] text-[9px] text-muted">พร้อมฝึกในอีก ~{hoursLeft} ชม.</p>
-                            )}
+                            <p className="pl-[4.625rem] text-[9px] text-muted">
+                              {hoursLeft !== null ? `พร้อมฝึกในอีก ~${hoursLeft} ชม.` : 'พร้อมฝึกได้เลย'}
+                            </p>
                           </div>
                         )
                       })}
