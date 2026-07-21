@@ -130,6 +130,21 @@ vercel --prod
 
 > **สำคัญ:** ถ้าคุณเคยรัน `schema.sql` เวอร์ชันเก่าไปแล้ว ให้กลับไปที่ Supabase SQL Editor แล้วรันไฟล์ `supabase/schema.sql` เวอร์ชันใหม่นี้ซ้ำอีกครั้ง (รันซ้ำได้อย่างปลอดภัย) เพื่อสร้างตาราง/คอลัมน์ใหม่ที่ฟีเจอร์เหล่านี้ต้องใช้ (`profiles`, `body_metrics`, `progress_photos`, `goals`, คอลัมน์ `muscle_group` และ `rpe`, และ storage bucket `progress-photos`)
 
+## 6.5 คลังท่าออกกำลังกาย — รูปสาธิต + ไดอะแกรมกล้ามเนื้อ
+
+หน้า `/exercises/[name]` โชว์รูปสาธิตท่า (จากคอลัมน์ `image_url`) และไดอะแกรมคนไฮไลต์กล้ามเนื้อ (จากคอลัมน์ `highlighter_muscles`) ถ้ามีข้อมูล — ทั้งสองอย่างเป็นของฟรี/โอเพนซอร์สทั้งคู่:
+
+- **ไดอะแกรมกล้ามเนื้อ** ใช้ไลบรารี [`react-body-highlighter`](https://www.npmjs.com/package/react-body-highlighter) (MIT) — รัน `npm install` ตามปกติจะได้มาด้วย ท่าไหนมี `highlighter_muscles` ในตาราง `exercise_library` แล้วจะขึ้นให้อัตโนมัติ (ดู `supabase/migrations/014_exercise_library_highlighter_muscles.sql` — ใส่ไว้ให้ครบทุกท่าที่มีในระบบตอนนี้แล้ว)
+- **รูปสาธิตท่า** ดึงจาก [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Public Domain, ฟรีใช้เชิงพาณิชย์ได้) — เพราะไม่มีคนกลางรู้ว่ารูปไหนตรงกับท่าไหนในคลังของเรา ให้รันสคริปต์จับคู่อัตโนมัติในเครื่องตัวเอง (ต้องมีเน็ต):
+
+```bash
+node scripts/match-exercise-images.mjs
+```
+
+สคริปต์จะสร้าง `supabase/migrations/015_exercise_library_images.sql` (เฉพาะท่าที่จับคู่ได้มั่นใจ) และ `scripts/match-exercise-images.unmatched.json` (ท่าที่หารูปให้ไม่ได้ ต้องหาเองหรือปรับชื่อ) — ตรวจรูปที่จับคู่มาคร่าวๆ ก่อนรัน SQL จริงเพราะเป็นการจับคู่ชื่ออัตโนมัติ ไม่ได้เช็คความถูกต้อง 100%
+
+เวลาเพิ่มท่าชุดใหม่ (เช่น หลัง/ขา/ไหล่/แขน/core) ให้ใส่ `highlighter_muscles` มาพร้อมกับ `insert` เลย (ดูตัวอย่างใน `012_exercise_library_seed_chest.sql`) แล้วเพิ่มชื่อท่าเข้าไปใน `EXERCISES` array ของสคริปต์นี้เพื่อหารูปรอบถัดไป
+
 ## 7. โครงสร้างไฟล์สำคัญ
 
 ```
