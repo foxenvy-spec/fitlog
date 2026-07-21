@@ -5,6 +5,21 @@ import type { MuscleGroup } from './muscle-groups'
 // เก็บ union นี้ไว้เผื่ออยากใช้ช่วย autocomplete ตอนเพิ่มท่า custom ในอนาคต
 export type Equipment = 'บาร์เบล' | 'ดัมเบล' | 'เครื่อง' | 'เคเบิล' | 'น้ำหนักตัว' | 'คีทเทิลเบล'
 
+// ป้ายชื่ออุปกรณ์ภาษาอังกฤษ — ใช้แสดงผล UI เท่านั้น ค่าที่เก็บใน DB ยังเป็นภาษาไทยเหมือนเดิม
+// (ส่วนใหญ่ค่าไทยเป็นแค่คำทับศัพท์ เช่น บาร์เบล/ดัมเบล/เคเบิล/คีทเทิลเบล อยู่แล้ว)
+const EQUIPMENT_LABELS_EN: Record<Equipment, string> = {
+  'บาร์เบล': 'Barbell',
+  'ดัมเบล': 'Dumbbell',
+  'เครื่อง': 'Machine',
+  'เคเบิล': 'Cable',
+  'น้ำหนักตัว': 'Bodyweight',
+  'คีทเทิลเบล': 'Kettlebell',
+}
+
+export function equipmentLabel(equipment: Equipment): string {
+  return EQUIPMENT_LABELS_EN[equipment] ?? equipment
+}
+
 export interface ExerciseDef {
   id: string
   name: string
