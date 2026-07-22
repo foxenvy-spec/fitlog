@@ -57,6 +57,16 @@
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 45%);
 }
 
+/* the ONE card per screen that should visually dominate — stronger shadow + warm amber-tinted
+   gradient (vs the neutral sheen on .shadow-elevated) so the eye lands here first. */
+.shadow-hero {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 16px 40px -8px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(232, 163, 61, 0.08);
+  background-image: linear-gradient(155deg, rgba(232, 163, 61, 0.1), rgba(232, 163, 61, 0) 55%);
+}
+
 .input {
   @apply w-full rounded-lg bg-surface border border-line px-4 py-3 text-ink placeholder:text-muted/50 focus:border-amber outline-none transition;
 }
@@ -99,4 +109,63 @@
 }
 .animate-pop-in {
   animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* dashboard load — cards rise + fade in with a stagger (via inline animation-delay per card)
+   so the page feels like it's "arriving" instead of popping in all at once. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise-in 0.5s ease-out both;
+}
+
+/* gentle nudge on the hero card when today's workout hasn't been started yet —
+   pulses a few times then stops (not an infinite distraction), reusing the hero's
+   own shadow stack in the keyframe so it doesn't "lose" the base elevation mid-pulse. */
+@keyframes hero-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 16px 40px -8px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(232, 163, 61, 0.08),
+      0 0 0 0 rgba(232, 163, 61, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 16px 40px -8px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(232, 163, 61, 0.08),
+      0 0 0 9px rgba(232, 163, 61, 0);
+  }
+}
+.animate-hero-glow {
+  animation: hero-glow-pulse 2.2s ease-in-out 3;
+}
+
+/* hero card's "not started yet" state needs BOTH the entry rise-in and the glow pulse at once.
+   two classes that each set the `animation` shorthand would clobber each other (last one in the
+   cascade wins), so this composite class declares both animations together with baked-in delays
+   instead — the glow starts ~once the rise-in has settled. */
+.animate-hero-enter {
+  animation:
+    rise-in 0.5s ease-out 60ms both,
+    hero-glow-pulse 2.2s ease-in-out 620ms 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-hero-glow,
+  .animate-hero-enter,
+  .animate-pr-glow,
+  .animate-pop-in {
+    animation: none !important;
+  }
 }
