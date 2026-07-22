@@ -21,7 +21,10 @@ import {
   computeBestVolumeIncrease,
   computeGreetingContext,
   computeWorkoutMotivationLabel,
+  getScheduledMuscleForDay,
+  getNextScheduledMuscle,
 } from './dashboardStats'
+import { MUSCLE_GROUPS } from './muscle-groups'
 
 // ทุกฟังก์ชันที่อ้างอิง "วันนี้" ผ่าน todayStr()/new Date() ต้อง freeze เวลาไว้
 // ไม่งั้น test จะ flaky ตามวันที่รันจริง
@@ -410,6 +413,72 @@ describe('suggestMuscleToTrain', () => {
 
   it('returns null when there is no data', () => {
     expect(suggestMuscleToTrain({})).toBeNull()
+  })
+
+  it('prioritizes the scheduled muscle over the highest recovery % when provided', () => {
+    // ทั้ง อก และ ขา ฟื้นตัว 100% เท่ากัน — ปกติจะเลือกตัวที่เจอก่อน (อก) แต่ถ้าตารางระบุว่าวันนี้คือขา
+    // ต้องเลือกขาแทน ไม่ใช่อก
+    const rec = suggestMuscleToTrain({ อก: 100, ขา: 100, หลัง: 33 }, 'ขา')
+    expect(rec?.muscleGroup).toBe('ขา')
+    expect(rec?.pct).toBe(100)
+  })
+
+  it('falls back to highest recovery % when the scheduled muscle has no recovery data', () => {
+    const rec = suggestMuscleToTrain({ อก: 95, หลัง: 65 }, 'ขา')
+    expect(rec?.muscleGroup).toBe('อก')
+  })
+
+  it('falls back to highest recovery % when no scheduledMuscle is given', () => {
+    const rec = suggestMuscleToTrain({ อก: 95, ขา: 20 }, null)
+    expect(rec?.muscleGroup).toBe('อก')
+  })
+})
+
+describe('getScheduledMuscleForDay', () => {
+  const programDays = [
+    { day_of_week: 1, title: 'อก' },
+    { day_of_week: 2, title: 'หลัง' },
+    { day_of_week: 3, title: 'พัก' },
+    { day_of_week: 4, title: 'ขา' },
+  ]
+
+  it('returns the muscle group title for the matching day', () => {
+    expect(getScheduledMuscleForDay(programDays, 4, MUSCLE_GROUPS)).toBe('ขา')
+  })
+
+  it('returns null when the day title does not match a known muscle group (e.g. a rest day)', () => {
+    expect(getScheduledMuscleForDay(programDays, 3, MUSCLE_GROUPS)).toBeNull()
+  })
+
+  it('returns null when there is no program day for that day_of_week', () => {
+    expect(getScheduledMuscleForDay(programDays, 6, MUSCLE_GROUPS)).toBeNull()
+  })
+
+  it('returns null when there is no schedule at all', () => {
+    expect(getScheduledMuscleForDay([], 4, MUSCLE_GROUPS)).toBeNull()
+  })
+})
+
+describe('getNextScheduledMuscle', () => {
+  const programDays = [
+    { day_of_week: 1, title: 'อก' },
+    { day_of_week: 2, title: 'หลัง' },
+    { day_of_week: 3, title: 'พัก' },
+    { day_of_week: 4, title: 'ขา' },
+  ]
+
+  it('finds the next day with a muscle group, skipping rest days', () => {
+    // จากวันอังคาร (2) ถัดไปคือพุธ (พัก, ข้าม) แล้วพฤหัส (ขา)
+    expect(getNextScheduledMuscle(programDays, 2, MUSCLE_GROUPS)).toBe('ขา')
+  })
+
+  it('wraps around the week when nothing later matches', () => {
+    // จากพฤหัส (4) ไม่มีวันไหนหลังจากนี้ผูกกล้ามเนื้อไว้แล้ว วนกลับไปเจอจันทร์ (อก)
+    expect(getNextScheduledMuscle(programDays, 4, MUSCLE_GROUPS)).toBe('อก')
+  })
+
+  it('returns null when no day in the schedule maps to a muscle group', () => {
+    expect(getNextScheduledMuscle([{ day_of_week: 3, title: 'พัก' }], 1, MUSCLE_GROUPS)).toBeNull()
   })
 })
 
