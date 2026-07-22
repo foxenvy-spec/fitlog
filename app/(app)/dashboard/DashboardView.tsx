@@ -306,6 +306,20 @@ export default function DashboardPage() {
     [data, scheduledDay]
   )
   const totals = useMemo(() => computeTodayTotals(data?.todayWorkouts ?? []), [data?.todayWorkouts])
+
+  // สรุปกลุ่มกล้ามเนื้อหลักที่เทรนวันนี้เป็น label เดียว เช่น "อก + แขน" — ใช้แค่ muscle_group หลัก
+  // ของแต่ละ workout (ไม่รวม secondary) เพื่อให้สั้นกระชับพอจะโชว์บน hero card ได้ ไล่ตามลำดับที่เทรนก่อน-หลัง
+  const todayMuscleLabel = useMemo(() => {
+    const seen = new Set<string>()
+    const ordered: string[] = []
+    for (const w of data?.todayWorkouts ?? []) {
+      if (w.muscle_group && (VOLUME_MUSCLES as readonly string[]).includes(w.muscle_group) && !seen.has(w.muscle_group)) {
+        seen.add(w.muscle_group)
+        ordered.push(w.muscle_group)
+      }
+    }
+    return ordered.length > 0 ? ordered.join(' + ') : null
+  }, [data?.todayWorkouts])
   const progressPct =
     data && data.todayExercises.length > 0 ? Math.round((data.completedCount / data.todayExercises.length) * 100) : null
   const nextExerciseName = useMemo(() => {
@@ -363,7 +377,9 @@ export default function DashboardPage() {
       >
         <div className="px-5 py-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] tracked uppercase text-muted">Today&apos;s Workout</p>
+            <p className="text-[10px] tracked uppercase text-muted flex items-center gap-1.5">
+              <span aria-hidden="true">🔥</span> Today&apos;s Workout
+            </p>
             {scheduledDay ? (
               <a
                 href="/session"
@@ -388,12 +404,20 @@ export default function DashboardPage() {
                 <p className="font-display text-base tracked uppercase text-ink truncate">
                   {workoutTitle ?? 'ยังไม่ได้ตั้งโปรแกรม'}
                 </p>
-                <p className="text-[11px] text-muted mt-1">
-                  <span className="text-ink font-mono">
-                    {data.completedCount}/{data.todayExercises.length}
-                  </span>{' '}
-                  Exercises
-                </p>
+                {todayMuscleLabel && <p className="text-xs text-amber mt-0.5 truncate">{todayMuscleLabel}</p>}
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                  <p className="text-[11px] text-muted">
+                    <span className="text-ink font-mono">
+                      {data.completedCount}/{data.todayExercises.length}
+                    </span>{' '}
+                    Exercises
+                  </p>
+                  {totals.durationMin !== null && (
+                    <p className="text-[11px] text-muted">
+                      <span className="text-ink font-mono">{Math.round(totals.durationMin)}</span> นาที
+                    </p>
+                  )}
+                </div>
                 {nextExerciseName && progressPct < 100 ? (
                   <p className="text-[11px] text-muted truncate mt-0.5">
                     Next: <span className="text-ink">{nextExerciseName}</span>
