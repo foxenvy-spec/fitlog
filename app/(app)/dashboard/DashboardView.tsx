@@ -331,7 +331,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* greeting + settings */}
-      <div className="flex items-start justify-between gap-3 px-1">
+      <div className="flex items-start justify-between gap-3 px-1 animate-rise" style={{ animationDelay: '0ms' }}>
         <div>
           <p className="text-xs text-muted">👋 {greetingText}</p>
           <p className="font-display text-lg tracked uppercase text-ink mt-0.5">
@@ -352,14 +352,18 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* card 1: today's workout */}
-      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
-        <div className="px-5 py-5">
-          <p className="text-[10px] tracked uppercase text-muted">Today&apos;s Workout</p>
-          <div className="flex items-center justify-between gap-2 mt-0.5">
-            <p className="font-display text-lg tracked uppercase text-ink truncate">
-              {workoutTitle ?? 'ยังไม่ได้ตั้งโปรแกรม'}
-            </p>
+      {/* card 1: today's workout — the ONE dominant focal card on this screen.
+          everything else below is intentionally quieter (no shadow-hero, smaller type)
+          so the eye has exactly one obvious place to land first. */}
+      <div
+        className={`rounded-lg bg-surface border border-amber/25 shadow-hero overflow-hidden ${
+          totals.entryCount === 0 ? 'animate-hero-enter' : 'animate-rise'
+        }`}
+        style={totals.entryCount === 0 ? undefined : { animationDelay: '60ms' }}
+      >
+        <div className="px-5 py-6">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] tracked uppercase text-muted">Today&apos;s Workout</p>
             {scheduledDay ? (
               <a
                 href="/session"
@@ -378,10 +382,13 @@ export default function DashboardPage() {
           </div>
 
           {progressPct !== null ? (
-            <div className="mt-3 flex items-center gap-4">
-              <GoalRing pct={progressPct} size={56} strokeWidth={6} ariaLabel="ความคืบหน้าวันนี้" />
+            <div className="mt-4 flex items-center gap-5">
+              <GoalRing pct={progressPct} size={104} strokeWidth={9} ariaLabel="ความคืบหน้าวันนี้" />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-muted">
+                <p className="font-display text-base tracked uppercase text-ink truncate">
+                  {workoutTitle ?? 'ยังไม่ได้ตั้งโปรแกรม'}
+                </p>
+                <p className="text-[11px] text-muted mt-1">
                   <span className="text-ink font-mono">
                     {data.completedCount}/{data.todayExercises.length}
                   </span>{' '}
@@ -396,43 +403,53 @@ export default function DashboardPage() {
                 ) : null}
               </div>
             </div>
-          ) : scheduledDay ? (
-            <p className="text-[11px] text-muted mt-1.5">
-              <a href="/program" className="hover:text-amber hover:underline">
-                ดูแผนทั้งหมด
-              </a>
-            </p>
-          ) : !scheduledDay ? (
-            <p className="text-[11px] text-muted mt-1.5">
-              ยังไม่มีโปรแกรมวันนี้ —{' '}
-              <a href="/program" className="text-amber hover:underline">
-                ตั้งโปรแกรม
-              </a>{' '}
-              หรือ{' '}
-              <a href="/templates" className="text-amber hover:underline">
-                เริ่มจากเทมเพลต
-              </a>
-            </p>
-          ) : null}
+          ) : (
+            <div className="mt-3">
+              <p className="font-display text-lg tracked uppercase text-ink truncate">
+                {workoutTitle ?? 'ยังไม่ได้ตั้งโปรแกรม'}
+              </p>
+              {scheduledDay ? (
+                <p className="text-[11px] text-muted mt-1.5">
+                  <a href="/program" className="hover:text-amber hover:underline">
+                    ดูแผนทั้งหมด
+                  </a>
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted mt-1.5">
+                  ยังไม่มีโปรแกรมวันนี้ —{' '}
+                  <a href="/program" className="text-amber hover:underline">
+                    ตั้งโปรแกรม
+                  </a>{' '}
+                  หรือ{' '}
+                  <a href="/templates" className="text-amber hover:underline">
+                    เริ่มจากเทมเพลต
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* quick start actions — วางไว้ใต้ Today's Workout เสมอ กันผู้ใช้ใหม่ที่ยังไม่มีโปรแกรม/ประวัติ
           ไม่รู้จะกดอะไรต่อ ต่างจาก quick actions ชุดล่างที่เป็นทางลัดทั่วไป (บันทึก/เทมเพลต/สถิติ) —
           ชุดนี้เน้น 3 ทางเริ่มต้นที่ใช้บ่อยที่สุดตอนเปิดแอปครั้งแรก */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2 animate-rise" style={{ animationDelay: '120ms' }}>
         <QuickAction href="/log" label="บันทึกอิสระ" icon="➕" />
         <QuickAction href="/templates" label="เลือกโปรแกรม" icon="📋" />
         <QuickAction href="/coach" label="ถาม AI" icon="🤖" />
       </div>
 
       {/* muscles trained today — heat-map chips built from today's workout rows */}
-      <TodayMuscleHeatmap todayWorkouts={data.todayWorkouts} />
+      <div className="animate-rise" style={{ animationDelay: '180ms' }}>
+        <TodayMuscleHeatmap todayWorkouts={data.todayWorkouts} />
+      </div>
 
-      {/* card 2: recovery */}
+      {/* card 2: recovery — secondary weight on purpose: quieter border, no shadow, tighter
+          padding than the hero card above, so it reads as supporting info, not competing for focus */}
       {prefs.showRecovery && (
-        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
-          <a href="/recovery" className="block px-5 py-5 active:bg-surface2 transition">
+        <div className="rounded-lg bg-surface2/40 border border-line/60 overflow-hidden animate-rise" style={{ animationDelay: '240ms' }}>
+          <a href="/recovery" className="block px-4 py-4 active:bg-surface2 transition">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] tracked uppercase text-muted">Recovery</p>
             </div>
@@ -492,9 +509,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* card 4: weekly goal */}
-      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
-        <div className="px-5 py-5">
+      {/* card 4: weekly goal — secondary weight, matches recovery/AI-coach treatment */}
+      <div className="rounded-lg bg-surface2/40 border border-line/60 overflow-hidden animate-rise" style={{ animationDelay: '300ms' }}>
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] tracked uppercase text-muted">Weekly Goal</p>
             <span className="font-mono text-xs text-ink">{data.weeklyGoalPct}%</span>
@@ -528,10 +545,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* card 5 (optional): AI coach */}
+      {/* card 5 (optional): AI coach — secondary weight */}
       {prefs.showAICoach && (
-        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
-          <a href="/coach" className="block px-5 py-5 active:bg-surface2 transition">
+        <div className="rounded-lg bg-surface2/40 border border-line/60 overflow-hidden animate-rise" style={{ animationDelay: '360ms' }}>
+          <a href="/coach" className="block px-4 py-4 active:bg-surface2 transition">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] tracked uppercase text-muted">✨ AI Coach</p>
               <span className="text-muted text-xs">ดูรายละเอียด →</span>
@@ -596,7 +613,7 @@ function QuickAction({ href, label, icon }: { href: string; label: string; icon:
   return (
     <a
       href={href}
-      className="rounded-lg bg-surface border border-line shadow-elevated flex flex-col items-center justify-center gap-1 py-3.5 text-muted hover:text-amber hover:border-amber/50 transition focus-visible:text-amber"
+      className="rounded-lg bg-surface2/40 border border-line/60 flex flex-col items-center justify-center gap-1 py-3.5 text-muted hover:text-amber hover:border-amber/50 transition focus-visible:text-amber"
     >
       <span className="text-lg">{icon}</span>
       <span className="text-[10px] font-display tracked uppercase">{label}</span>
