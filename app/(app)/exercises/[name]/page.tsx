@@ -112,7 +112,7 @@ export default function ExerciseDetailPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-lg bg-surface border border-line px-4 py-3.5 space-y-2">
+              <div key={i} className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 space-y-2">
                 <Skeleton className="h-3 w-16" />
                 <Skeleton className="h-6 w-20" />
               </div>
@@ -121,7 +121,7 @@ export default function ExerciseDetailPage() {
           <Skeleton className="h-44 w-full rounded-lg" />
         </div>
       ) : stats && stats.totalSessions === 0 ? (
-        <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-8 text-center">
+        <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-8 text-center">
           ยังไม่มีประวัติการฝึกท่านี้ —{' '}
           <a href="/log" className="text-amber hover:underline">
             บันทึกเซ็ตแรก
@@ -180,7 +180,7 @@ export default function ExerciseDetailPage() {
             <section>
               <h2 className="font-display text-sm tracked uppercase text-muted mb-3">Progress Graph (Estimated 1RM)</h2>
               {stats.progressPoints.length > 1 ? (
-                <div className="h-48 bg-surface border border-line rounded-lg p-3">
+                <div className="h-48 bg-surface border border-line shadow-elevated rounded-lg p-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={stats.progressPoints.map((p) => ({ ...p, oneRM: toDisplay(p.oneRM) }))}
@@ -200,7 +200,7 @@ export default function ExerciseDetailPage() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+                <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
                   บันทึกท่านี้อีกอย่างน้อย 2 ครั้งเพื่อดูแนวโน้ม
                 </p>
               )}
@@ -210,7 +210,7 @@ export default function ExerciseDetailPage() {
             {/* last 10 sessions */}
             <section>
               <h2 className="font-display text-sm tracked uppercase text-muted mb-3">Last 10 Sessions</h2>
-              <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+              <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
                 {stats.last10Sessions.map((s) => (
                   <li key={s.id} className="tally-row flex items-center justify-between px-4 py-3">
                     <div className="min-w-0">
@@ -245,7 +245,7 @@ export default function ExerciseDetailPage() {
 
 function StatCard({ label, value, unit, accent }: { label: string; value: string; unit: string; accent?: boolean }) {
   return (
-    <div className="bg-surface border border-line rounded-lg px-4 py-3.5">
+    <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
       <p className="text-[11px] tracked uppercase text-muted mb-1">{label}</p>
       <p className={`font-mono text-2xl tabular ${accent ? 'text-amber' : 'text-ink'}`}>
         {value}

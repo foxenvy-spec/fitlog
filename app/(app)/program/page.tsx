@@ -337,7 +337,7 @@ export default function ProgramPage() {
       {logMessage && <p className="text-sm text-steel">{logMessage}</p>}
 
       {!currentDay && (
-        <div className="rounded-lg bg-surface border border-line border-dashed px-4 py-8 text-center space-y-3">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated border-dashed px-4 py-8 text-center space-y-3">
           <p className="text-sm text-muted">ยังไม่ได้ตั้งค่าโปรแกรมสำหรับวัน{WEEKDAYS[selectedDow]}</p>
           <div className="flex gap-2 justify-center">
             <a
@@ -357,7 +357,7 @@ export default function ProgramPage() {
       )}
 
       {currentDay && (
-        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           <div className="px-4 py-3 border-b border-line">
             <input
               value={currentDay.title}
@@ -532,7 +532,7 @@ function AddExerciseForm({
   const [exerciseLibraryId, setExerciseLibraryId] = useState<string | null>(null)
 
   return (
-    <div className="rounded-lg bg-surface border border-line px-4 py-4 space-y-3">
+    <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-4 space-y-3">
       <p className="text-sm text-ink font-display tracked uppercase">เพิ่มท่าใหม่</p>
       <ExercisePicker
         value={name}

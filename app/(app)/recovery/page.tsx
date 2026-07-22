@@ -149,7 +149,7 @@ export default function RecoveryPage() {
       ) : loading ? (
         <div className="space-y-3">
           {MUSCLE_GROUPS.map((mg) => (
-            <div key={mg} className="rounded-lg bg-surface border border-line px-4 py-3.5 space-y-2">
+            <div key={mg} className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 space-y-2">
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-2.5 w-full rounded-full" />
             </div>
@@ -162,7 +162,7 @@ export default function RecoveryPage() {
             const color = recoveryStatusColor(pct)
             const hoursLeft = computeRecoveryReadyInHours(lastTrained, mg)
             return (
-              <div key={mg} className="rounded-lg bg-surface border border-line px-4 py-3.5">
+              <div key={mg} className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span

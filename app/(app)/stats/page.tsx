@@ -330,7 +330,7 @@ export default function StatsPage() {
         <h2 className="font-display text-sm tracked uppercase text-muted mb-3">
           Weekly Volume ({WEEKS_SHOWN} สัปดาห์ล่าสุด, {unit})
         </h2>
-        <div className="h-48 bg-surface border border-line rounded-lg p-3">
+        <div className="h-48 bg-surface border border-line shadow-elevated rounded-lg p-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={weeklyVolume.map((b) => ({ ...b, value: Math.round(toDisplay(b.value)) }))} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid stroke="#2E333A" vertical={false} />
@@ -357,7 +357,7 @@ export default function StatsPage() {
       {muscleDistribution.length > 0 && (
         <section>
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">Muscle Distribution (วอลุ่มรวม)</h2>
-          <div className="bg-surface border border-line rounded-lg p-4 space-y-3">
+          <div className="bg-surface border border-line shadow-elevated rounded-lg p-4 space-y-3">
             {muscleDistribution.map((m) => (
               <div key={m.name}>
                 <div className="flex items-center justify-between text-xs mb-1">
@@ -383,7 +383,7 @@ export default function StatsPage() {
         <h2 className="font-display text-sm tracked uppercase text-muted mb-3">
           ระยะทางคาร์ดิโอ (กม. ต่อวัน, 28 วันล่าสุด)
         </h2>
-        <div className="h-48 bg-surface border border-line rounded-lg p-3">
+        <div className="h-48 bg-surface border border-line shadow-elevated rounded-lg p-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={distanceByDay} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid stroke="#2E333A" vertical={false} />
@@ -425,7 +425,7 @@ export default function StatsPage() {
             </select>
           </div>
           {oneRmTrend.length > 1 ? (
-            <div className="h-44 bg-surface border border-line rounded-lg p-3">
+            <div className="h-44 bg-surface border border-line shadow-elevated rounded-lg p-3">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={oneRmTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <CartesianGrid stroke="#2E333A" vertical={false} />
@@ -442,7 +442,7 @@ export default function StatsPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+            <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
               บันทึกท่านี้อีกอย่างน้อย 2 ครั้งเพื่อดูแนวโน้ม
             </p>
           )}
@@ -455,7 +455,7 @@ export default function StatsPage() {
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">🎯 Next PR แนะนำ</h2>
           <a
             href={`/exercises/${encodeURIComponent(nextPR.exerciseName)}`}
-            className="block rounded-lg bg-surface border border-line px-5 py-5 active:bg-surface2 transition"
+            className="block rounded-lg bg-surface border border-line shadow-elevated px-5 py-5 active:bg-surface2 transition"
           >
             <div className="flex items-center justify-between mb-2">
               <p className="font-display text-base tracked uppercase text-ink">{nextPR.exerciseName}</p>
@@ -482,7 +482,7 @@ export default function StatsPage() {
       {prs.length > 0 && (
         <section>
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">🏆 Personal Records (น้ำหนักสูงสุด)</h2>
-          <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+          <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
             {prs.map((p) => {
               const isNewPR = p.date === todayStr()
               return (
@@ -513,7 +513,7 @@ export default function StatsPage() {
       {topExercises.length > 0 && (
         <section>
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">ท่ายอดฮิต</h2>
-          <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+          <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
             {topExercises.map(([name, count]) => (
               <li key={name} className="tally-row">
                 <a
@@ -558,7 +558,7 @@ function StatCard({
 }) {
   const color = { amber: 'text-amber', steel: 'text-steel', rust: 'text-rusttext' }[accent]
   return (
-    <div className="bg-surface border border-line rounded-lg px-4 py-3.5">
+    <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
       <p className="text-[11px] tracked uppercase text-muted mb-1">{label}</p>
       <p className={`font-mono text-2xl tabular ${color}`}>
         {value}

@@ -40,7 +40,7 @@ export default function TrainPage() {
           <a
             key={item.href}
             href={item.href}
-            className="block rounded-xl bg-surface border border-line px-4 py-4 active:scale-[0.99] transition"
+            className="block rounded-xl bg-surface border border-line shadow-elevated px-4 py-4 active:scale-[0.99] transition"
           >
             <div className="flex items-center gap-3">
               <span className="shrink-0 w-10 h-10 rounded-full bg-amber/15 text-amber flex items-center justify-center text-lg">
@@ -62,7 +62,7 @@ export default function TrainPage() {
             <a
               key={item.href}
               href={item.href}
-              className="rounded-lg bg-surface border border-line flex flex-col items-center justify-center gap-1.5 py-5 text-muted hover:text-amber hover:border-amber/50 transition"
+              className="rounded-lg bg-surface border border-line shadow-elevated flex flex-col items-center justify-center gap-1.5 py-5 text-muted hover:text-amber hover:border-amber/50 transition"
             >
               <span className="text-xl">{item.icon}</span>
               <span className="text-[10px] font-display tracked uppercase">{item.label}</span>

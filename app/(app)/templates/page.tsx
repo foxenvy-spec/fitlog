@@ -233,7 +233,7 @@ export default function TemplatesPage() {
       {startMessage && <p className="text-sm text-steel">{startMessage}</p>}
 
       {templates.length === 0 && !creating && (
-        <div className="rounded-lg bg-surface border border-line border-dashed px-4 py-8 text-center">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated border-dashed px-4 py-8 text-center">
           <p className="text-sm text-muted mb-3">ยังไม่มีเทมเพลต</p>
           <button
             onClick={() => setCreating(true)}
@@ -248,7 +248,7 @@ export default function TemplatesPage() {
           const exercises = exercisesByTemplate[t.id] ?? []
           const expanded = expandedId === t.id
           return (
-            <div key={t.id} className="rounded-lg bg-surface border border-line overflow-hidden">
+            <div key={t.id} className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
               <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
                 <button onClick={() => setExpandedId(expanded ? null : t.id)} className="min-w-0 text-left flex-1">
                   <p className="text-sm text-ink font-display tracked uppercase truncate">{t.title}</p>
@@ -320,7 +320,7 @@ export default function TemplatesPage() {
 function NewTemplateForm({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: (title: string) => void }) {
   const [title, setTitle] = useState('')
   return (
-    <div className="rounded-lg bg-surface border border-line px-4 py-4 space-y-3">
+    <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-4 space-y-3">
       <p className="text-sm text-ink font-display tracked uppercase">เทมเพลตใหม่</p>
       <input
         value={title}

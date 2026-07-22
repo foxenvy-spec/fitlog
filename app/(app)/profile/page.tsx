@@ -25,7 +25,7 @@ function ProfileSkeleton() {
           <div className="h-3 w-36 rounded bg-surface2" />
         </div>
       </div>
-      <div className="rounded-xl bg-surface border border-line divide-y divide-line overflow-hidden">
+      <div className="rounded-xl bg-surface border border-line shadow-elevated divide-y divide-line overflow-hidden">
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="px-4 py-3.5">
             <div className="h-3.5 w-32 rounded bg-surface2" />

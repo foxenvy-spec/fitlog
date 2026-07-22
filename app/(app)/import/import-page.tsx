@@ -299,7 +299,7 @@ export default function ImportPage() {
       </div>
 
       {!parsed && (
-        <div className="rounded-lg bg-surface border border-line border-dashed px-4 py-8 text-center">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated border-dashed px-4 py-8 text-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -331,7 +331,7 @@ export default function ImportPage() {
       )}
 
       {result && (
-        <div className="rounded-lg bg-surface border border-line px-4 py-4 text-center space-y-2">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-4 text-center space-y-2">
           <p className="text-sm text-ink font-display tracked uppercase">นำเข้าสำเร็จ ✓</p>
           <p className="text-xs text-muted">
             {result.workouts > 0 && `บันทึกท่าออกกำลังกาย ${result.workouts} รายการ`}
@@ -357,7 +357,7 @@ export default function ImportPage() {
           <p className="text-xs text-muted font-mono truncate">{fileName}</p>
 
           {parsed.days.length === 0 && parsed.bodyLog.length === 0 && (
-            <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+            <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
               ไม่พบข้อมูลที่รองรับในไฟล์นี้
             </p>
           )}
@@ -425,7 +425,7 @@ function DayCard({
   const includedCount = day.exercises.filter((e) => e.include).length
 
   return (
-    <div className="rounded-lg bg-surface border border-line overflow-hidden">
+    <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
       <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm text-ink font-display tracked uppercase truncate">{day.title}</p>
@@ -559,7 +559,7 @@ function BodyLogCard({
   onUpdate: (id: string, patch: Partial<ParsedBodyLogRow>) => void
 }) {
   return (
-    <div className="rounded-lg bg-surface border border-line overflow-hidden">
+    <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
       <div className="px-4 py-3 border-b border-line">
         <p className="text-sm text-ink font-display tracked uppercase">บันทึกสัดส่วนร่างกาย</p>
         <p className="text-[11px] text-muted">พบ {bodyLog.length} แถวที่มีวันที่กรอกไว้</p>

@@ -215,7 +215,7 @@ export default function CoachPage() {
         </div>
       ) : data ? (
         <>
-          <div className="flex items-start gap-2.5 rounded-lg bg-surface border border-line px-4 py-3.5">
+          <div className="flex items-start gap-2.5 rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5">
             <span className="text-lg leading-none shrink-0">✨</span>
             <p className="text-sm text-ink whitespace-pre-line">{data.dailySummary}</p>
           </div>
@@ -224,7 +224,7 @@ export default function CoachPage() {
 
           <section className="space-y-2.5">
             <h2 className="font-display text-sm tracked uppercase text-muted">สมดุล Push / Pull</h2>
-            <div className="rounded-lg bg-surface border border-line px-4 py-3.5 space-y-3">
+            <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 space-y-3">
               {(() => {
                 const maxSets = Math.max(data.balance.pushSets, data.balance.pullSets, 1)
                 const pushPct = Math.round((data.balance.pushSets / maxSets) * 100)
@@ -264,7 +264,7 @@ export default function CoachPage() {
           <section className="space-y-2.5">
             <h2 className="font-display text-sm tracked uppercase text-muted">Progressive Overload</h2>
             {data.overloadPlans.length === 0 ? (
-              <div className="rounded-lg bg-surface border border-line px-4 py-3.5">
+              <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5">
                 <p className="text-[11px] text-muted">
                   ยังไม่มีประวัติพอให้แนะนำ —{' '}
                   <a href="/log" className="text-amber hover:underline">
@@ -279,7 +279,7 @@ export default function CoachPage() {
                   <a
                     key={plan.exerciseName}
                     href={`/exercises/${encodeURIComponent(plan.exerciseName)}`}
-                    className="block rounded-lg bg-surface border border-line px-4 py-3.5 active:bg-surface2 transition"
+                    className="block rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 active:bg-surface2 transition"
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-display text-base tracked uppercase text-ink">{plan.exerciseName}</p>

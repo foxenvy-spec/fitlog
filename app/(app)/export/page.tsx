@@ -166,7 +166,7 @@ export default function ExportPage() {
       {message && <p className="text-sm text-steel">{message}</p>}
       {restoreSummary && <p className="text-sm text-steel">{restoreSummary}</p>}
 
-      <section className="rounded-lg bg-surface border border-line divide-y divide-line overflow-hidden">
+      <section className="rounded-lg bg-surface border border-line shadow-elevated divide-y divide-line overflow-hidden">
         <SectionRow
           title="Export เป็น Excel"
           desc="ทุกตาราง (ออกกำลังกาย / ข้อมูลร่างกาย / เป้าหมาย) ในไฟล์เดียว หลายชีต"
@@ -183,7 +183,7 @@ export default function ExportPage() {
         />
       </section>
 
-      <section className="rounded-lg bg-surface border border-line divide-y divide-line overflow-hidden">
+      <section className="rounded-lg bg-surface border border-line shadow-elevated divide-y divide-line overflow-hidden">
         <SectionRow
           title="Backup ข้อมูลทั้งหมด"
           desc="ไฟล์ .json สำรองข้อมูลไว้ กู้คืนกลับมาได้ภายหลัง"

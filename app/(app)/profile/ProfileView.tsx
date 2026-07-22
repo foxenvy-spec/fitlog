@@ -64,7 +64,7 @@ export default function ProfileView() {
         </div>
       </div>
 
-      <div className="rounded-xl bg-surface border border-line divide-y divide-line overflow-hidden">
+      <div className="rounded-xl bg-surface border border-line shadow-elevated divide-y divide-line overflow-hidden">
         {LINKS.map((item) => (
           <a
             key={item.href}
@@ -83,7 +83,7 @@ export default function ProfileView() {
 
       <div>
         <p className="text-[10px] tracked uppercase text-muted mb-2">ตั้งค่า</p>
-        <div className="rounded-xl bg-surface border border-line px-4 py-3.5 flex items-center justify-between">
+        <div className="rounded-xl bg-surface border border-line shadow-elevated px-4 py-3.5 flex items-center justify-between">
           <p className="text-sm text-ink">หน่วยน้ำหนัก</p>
           <WeightUnitToggle />
         </div>

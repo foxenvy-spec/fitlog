@@ -340,7 +340,7 @@ export default function SessionPage() {
 
   if (phase === 'empty') {
     return (
-      <div className="rounded-lg bg-surface border border-line border-dashed px-4 py-10 text-center space-y-3">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated border-dashed px-4 py-10 text-center space-y-3">
         <p className="text-sm text-muted">ยังไม่มีโปรแกรมตั้งไว้สำหรับวันนี้ เลยเริ่มเซสชันไม่ได้</p>
         <div className="flex gap-2 justify-center">
           <a href="/program" className="text-xs font-display tracked uppercase text-bg bg-amber rounded-lg px-4 py-2 inline-block">
@@ -410,7 +410,7 @@ export default function SessionPage() {
         )}
 
         {summaryExtras && (
-          <div className="rounded-lg bg-surface border border-line px-4 py-3.5 text-left space-y-2.5">
+          <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 text-left space-y-2.5">
             <div className="flex items-center justify-between">
               <p className="text-[10px] tracked uppercase text-muted">ความพร้อมครั้งถัดไป</p>
               <p className={`font-mono text-lg ${recoveryTextColor(summaryExtras.recovery.overall)}`}>
@@ -501,7 +501,7 @@ export default function SessionPage() {
         ))}
       </div>
 
-      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line">
           <div className="flex items-center gap-2">
             {mg && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: mgColor }} />}
@@ -599,7 +599,7 @@ export default function SessionPage() {
 
 function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-surface border border-line rounded-lg py-3">
+    <div className="bg-surface border border-line shadow-elevated rounded-lg py-3">
       <p className="font-mono text-lg text-ink tabular">{value}</p>
       <p className="text-[9px] tracked uppercase text-muted mt-0.5">{label}</p>
     </div>

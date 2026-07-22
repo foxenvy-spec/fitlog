@@ -215,7 +215,7 @@ function HistoryPageInner() {
       {actionError && <p className="text-xs text-rusttext">{actionError}</p>}
 
       {dates.length === 0 ? (
-        <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-8 text-center">
+        <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-8 text-center">
           ยังไม่มีประวัติการออกกำลังกาย
         </p>
       ) : (
@@ -223,7 +223,7 @@ function HistoryPageInner() {
           {dates.map((date) => (
             <div key={date}>
               <p className="text-xs font-mono tracked text-muted mb-2 uppercase">{formatThaiDate(date)}</p>
-              <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+              <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
                 {grouped[date].map((w) => (
                   <li key={w.id} className="tally-row flex items-center justify-between px-4 py-3">
                     <div className="min-w-0">

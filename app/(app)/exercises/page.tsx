@@ -77,11 +77,11 @@ export default function ExercisesPage() {
       )}
 
       {list.length === 0 ? (
-        <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+        <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
           ไม่พบท่านี้ในฐานข้อมูล
         </p>
       ) : (
-        <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+        <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           {list.map((ex) => {
             const expanded = expandedId === ex.id
             return (

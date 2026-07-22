@@ -159,7 +159,7 @@ export default function CalendarPage() {
       <h1 className="font-display text-2xl tracked uppercase">ปฏิทิน</h1>
 
       {streak > 0 && (
-        <div className="bg-surface border border-line rounded-lg px-4 py-3.5 flex items-center justify-between">
+        <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5 flex items-center justify-between">
           <span className="text-sm text-ink">🔥 Streak ต่อเนื่อง</span>
           <span className="font-mono text-2xl tabular text-amber">
             {streak}
@@ -245,11 +245,11 @@ export default function CalendarPage() {
             })}
           </p>
           {selectedWorkouts.length === 0 ? (
-            <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+            <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
               ไม่มีรายการวันนี้
             </p>
           ) : (
-            <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+            <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
               {selectedWorkouts.map((w) => (
                 <li key={w.id} className="tally-row px-4 py-3 text-sm text-ink">
                   {w.type === 'strength' ? (
@@ -301,7 +301,7 @@ export default function CalendarPage() {
         )}
 
         {goals.length === 0 ? (
-          <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+          <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
             ยังไม่มีเป้าหมาย ลองตั้งเป้าหมายแรกดู
           </p>
         ) : (
@@ -309,7 +309,7 @@ export default function CalendarPage() {
             {goals.map((g) => {
               const progress = goalProgress(g)
               return (
-                <li key={g.id} className="bg-surface border border-line rounded-lg px-4 py-3.5">
+                <li key={g.id} className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className={`text-sm ${g.status === 'done' ? 'text-muted line-through' : 'text-ink'}`}>
@@ -424,7 +424,7 @@ function GoalForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-surface border border-line rounded-lg p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="bg-surface border border-line shadow-elevated rounded-lg p-4 space-y-3">
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
