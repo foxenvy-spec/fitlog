@@ -8,7 +8,7 @@ const KIND_STYLE: Record<Insight['kind'], { border: string; accent: string }> = 
 export default function InsightCard({ insight }: { insight: Insight }) {
   const style = KIND_STYLE[insight.kind]
   return (
-    <div className={`rounded-lg bg-surface border border-line border-l-[3px] ${style.border} px-4 py-3 flex items-start gap-3`}>
+    <div className={`rounded-lg bg-surface border border-line shadow-elevated border-l-[3px] ${style.border} px-4 py-3 flex items-start gap-3`}>
       <span className="text-lg leading-none shrink-0 mt-0.5">{insight.icon}</span>
       <div className="min-w-0">
         <p className="text-[10px] tracked uppercase text-muted">Insight</p>

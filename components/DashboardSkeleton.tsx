@@ -3,7 +3,7 @@ import Skeleton from './Skeleton'
 export default function DashboardSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
         {/* greeting + streak */}
         <div className="px-4 pt-4 pb-3.5 flex items-start justify-between gap-3">
           <div className="space-y-2">
@@ -103,7 +103,7 @@ export default function DashboardSkeleton() {
       </div>
 
       {/* heatmap placeholder */}
-      <div className="rounded-lg bg-surface border border-line px-4 py-3.5 space-y-3">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 space-y-3">
         <div className="flex items-center justify-between">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-7 w-16 rounded-md" />
@@ -120,7 +120,7 @@ export default function DashboardSkeleton() {
       </div>
 
       {/* weekly volume placeholder */}
-      <div className="rounded-lg bg-surface border border-line px-4 py-3.5 space-y-3">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated px-4 py-3.5 space-y-3">
         <Skeleton className="h-5 w-40" />
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="space-y-1.5">

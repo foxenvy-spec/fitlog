@@ -85,7 +85,7 @@ export default function WorkoutHeatmap() {
   }
 
   return (
-    <div className="rounded-lg bg-surface border border-line overflow-hidden">
+    <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
       <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
         <div>
           <p className="text-[10px] tracked uppercase text-muted">Consistency</p>
