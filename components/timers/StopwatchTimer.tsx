@@ -44,7 +44,7 @@ export default function StopwatchTimer() {
       </div>
 
       {laps.length > 0 && (
-        <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+        <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           {laps.map((lapMs, i) => {
             const lapNumber = laps.length - i
             const prevLapMs = laps[i + 1] ?? 0

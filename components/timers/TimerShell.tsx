@@ -23,7 +23,7 @@ export function TimerShell({
 
   return (
     <div className="space-y-5">
-      <div className="bg-surface border border-line rounded-xl px-5 py-8 text-center">
+      <div className="bg-surface border border-line shadow-elevated rounded-xl px-5 py-8 text-center">
         <p className={`font-display tracked uppercase text-sm mb-2 ${textColor}`}>{phaseLabel}</p>
         <p className="font-mono tabular text-6xl text-ink leading-none">{timeText}</p>
         {subLabel && <p className="text-xs text-muted mt-3">{subLabel}</p>}
@@ -95,7 +95,7 @@ export function NumberStepper({
     return out
   }
   return (
-    <div className="bg-surface border border-line rounded-lg px-4 py-3">
+    <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3">
       <p className="text-[11px] tracked uppercase text-muted mb-1.5">{label}</p>
       <div className="flex items-center justify-between">
         <button
