@@ -26,6 +26,7 @@ import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
+import EmptyState from '@/components/EmptyState'
 
 const RANGE_DAYS = 180
 const WEEKS_SHOWN = 8
@@ -311,6 +312,21 @@ export default function StatsPage() {
     return <ErrorState title="โหลดข้อมูลสถิติไม่สำเร็จ" message={error} onRetry={load} />
   }
 
+  if (workouts.length === 0) {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-display text-2xl tracked uppercase">สถิติ · {RANGE_DAYS} วันล่าสุด</h1>
+        <EmptyState
+          icon="📈"
+          title="ยังไม่มีข้อมูลสถิติ"
+          message="เริ่มบันทึกการออกกำลังกายครั้งแรก แล้วสถิติของคุณจะเริ่มขึ้นที่นี่"
+          ctaHref="/log"
+          ctaLabel="+ เริ่มบันทึก"
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <h1 className="font-display text-2xl tracked uppercase">สถิติ · {RANGE_DAYS} วันล่าสุด</h1>
@@ -319,8 +335,8 @@ export default function StatsPage() {
         <StatCard label="Total Volume" value={Math.round(toDisplay(totals.totalVolume)).toLocaleString()} unit={unit} accent="steel" />
         <StatCard label="Total Reps" value={totals.totalReps.toLocaleString()} unit="ครั้ง" accent="amber" />
         <StatCard label="Volume สัปดาห์นี้" value={Math.round(toDisplay(totals.thisWeekVolume)).toLocaleString()} unit={unit} accent="rust" />
-        <StatCard label="วันที่ออกกำลังกาย" value={totals.activeDays.toString()} unit="วัน" accent="amber" />
-        <StatCard label="เซสชันเวท" value={totals.strengthCount.toString()} unit="ครั้ง" accent="steel" />
+        <StatCard label="วันที่ออกกำลังกาย" value={totals.activeDays.toString()} unit="วัน" accent="moss" />
+        <StatCard label="เซสชันเวท" value={totals.strengthCount.toString()} unit="ครั้ง" accent="moss" />
         <StatCard label="ระยะทางคาร์ดิโอรวม" value={totals.totalDistance.toFixed(1)} unit="กม." accent="rust" />
         <StatCard label="แคลอรี่ที่เผาผลาญรวม" value={totals.totalCalories.toLocaleString()} unit="kcal" accent="amber" />
         <StatCard label="เวลาเฉลี่ย/วัน" value={totals.avgDurationMin.toString()} unit="นาที" accent="steel" />
@@ -455,7 +471,14 @@ export default function StatsPage() {
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">🎯 Next PR แนะนำ</h2>
           <a
             href={`/exercises/${encodeURIComponent(nextPR.exerciseName)}`}
-            className="block rounded-lg bg-surface border border-line shadow-elevated px-5 py-5 active:bg-surface2 transition"
+            className="block rounded-lg border border-violet/25 shadow-glow px-5 py-5 active:bg-surface2 transition"
+            style={
+              {
+                backgroundColor: '#1C1F24',
+                '--glow-color': '#9C7CC426',
+                '--glow-color-soft': '#9C7CC41A',
+              } as React.CSSProperties & { '--glow-color'?: string; '--glow-color-soft'?: string }
+            }
           >
             <div className="flex items-center justify-between mb-2">
               <p className="font-display text-base tracked uppercase text-ink">{nextPR.exerciseName}</p>
@@ -470,7 +493,7 @@ export default function StatsPage() {
               </div>
               <div>
                 <p className="text-[10px] tracked uppercase text-muted">Target</p>
-                <p className="font-mono text-base text-amber">
+                <p className="font-mono text-base text-violet">
                   {format(nextPR.targetWeight)} × {nextPR.targetReps}
                 </p>
               </div>
@@ -482,7 +505,7 @@ export default function StatsPage() {
       {prs.length > 0 && (
         <section>
           <h2 className="font-display text-sm tracked uppercase text-muted mb-3">🏆 Personal Records (น้ำหนักสูงสุด)</h2>
-          <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
+          <ul className="rounded-lg bg-surface border border-violet/20 shadow-elevated overflow-hidden">
             {prs.map((p) => {
               const isNewPR = p.date === todayStr()
               return (
@@ -494,12 +517,12 @@ export default function StatsPage() {
                     <span className="text-sm text-ink flex items-center gap-1.5">
                       {p.name}
                       {isNewPR && (
-                        <span className="animate-pop-in text-[9px] font-display tracked uppercase text-bg bg-amber rounded-full px-1.5 py-0.5">
+                        <span className="animate-pop-in text-[9px] font-display tracked uppercase text-bg bg-violet rounded-full px-1.5 py-0.5">
                           NEW
                         </span>
                       )}
                     </span>
-                    <span className="font-mono text-sm text-amber">
+                    <span className="font-mono text-sm text-violet">
                       {format(p.weight)}{p.reps ? ` × ${p.reps}` : ''}
                     </span>
                   </a>
@@ -545,6 +568,22 @@ export default function StatsPage() {
   )
 }
 
+const STAT_ACCENT_TEXT = {
+  amber: 'text-amber',
+  steel: 'text-steel',
+  rust: 'text-rusttext',
+  moss: 'text-moss',
+  violet: 'text-violet',
+} as const
+
+const STAT_ACCENT_HEX = {
+  amber: '#E8A33D',
+  steel: '#6C8CA8',
+  rust: '#C1503A',
+  moss: '#7A9B57',
+  violet: '#9C7CC4',
+} as const
+
 function StatCard({
   label,
   value,
@@ -554,13 +593,19 @@ function StatCard({
   label: string
   value: string
   unit: string
-  accent: 'amber' | 'steel' | 'rust'
+  accent: 'amber' | 'steel' | 'rust' | 'moss' | 'violet'
 }) {
-  const color = { amber: 'text-amber', steel: 'text-steel', rust: 'text-rusttext' }[accent]
+  const hex = STAT_ACCENT_HEX[accent]
+  const glowStyle: React.CSSProperties & { '--glow-color'?: string; '--glow-color-soft'?: string } = {
+    borderColor: `${hex}33`,
+    backgroundColor: '#1C1F24',
+    '--glow-color': `${hex}26`,
+    '--glow-color-soft': `${hex}1A`,
+  }
   return (
-    <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
+    <div className="border shadow-glow rounded-lg px-4 py-3.5" style={glowStyle}>
       <p className="text-[11px] tracked uppercase text-muted mb-1">{label}</p>
-      <p className={`font-mono text-2xl tabular ${color}`}>
+      <p className={`font-mono text-2xl tabular ${STAT_ACCENT_TEXT[accent]}`}>
         {value}
         <span className="text-xs text-muted ml-1">{unit}</span>
       </p>
