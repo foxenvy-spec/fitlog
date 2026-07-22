@@ -67,6 +67,17 @@
   background-image: linear-gradient(155deg, rgba(232, 163, 61, 0.1), rgba(232, 163, 61, 0) 55%);
 }
 
+/* accent-tinted elevation — same "raised" treatment as .shadow-elevated but the sheen and
+   shadow pick up whatever color is passed via --glow-color, so a single class can give
+   Statistics/Calories/Workout/PR cards each their own colored glow instead of one flat look. */
+.shadow-glow {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 8px 20px -6px rgba(0, 0, 0, 0.45),
+    0 0 0 1px var(--glow-color, rgba(255, 255, 255, 0.06));
+  background-image: linear-gradient(155deg, var(--glow-color-soft, rgba(255, 255, 255, 0.035)), rgba(255, 255, 255, 0) 55%);
+}
+
 .input {
   @apply w-full rounded-lg bg-surface border border-line px-4 py-3 text-ink placeholder:text-muted/50 focus:border-amber outline-none transition;
 }
