@@ -47,6 +47,16 @@
   }
 }
 
+/* subtle elevation for surface cards — soft shadow + faint top gradient sheen so
+   cards read as "raised" instead of flat colored rectangles. Kept understated to
+   match the muted rust/amber/steel palette (no harsh drop shadows). */
+.shadow-elevated {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 8px 20px -6px rgba(0, 0, 0, 0.45);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 45%);
+}
+
 .input {
   @apply w-full rounded-lg bg-surface border border-line px-4 py-3 text-ink placeholder:text-muted/50 focus:border-amber outline-none transition;
 }
