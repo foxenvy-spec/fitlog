@@ -189,11 +189,18 @@ export default function HealthPage() {
           <section>
             <h2 className="font-display text-sm tracked uppercase text-muted mb-3">ประวัติการวัดผล</h2>
             {metrics.length === 0 ? (
-              <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
-                ยังไม่มีข้อมูล เริ่มบันทึกครั้งแรกได้เลย
-              </p>
+              <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-8 text-center space-y-3">
+                <div className="text-3xl">📏</div>
+                <p className="text-sm text-muted">ยังไม่มีข้อมูล เริ่มบันทึกครั้งแรกได้เลย</p>
+                <a
+                  href="#metric-form"
+                  className="inline-block text-[11px] font-display tracked uppercase text-bg bg-amber rounded-lg px-4 py-2 active:scale-[0.99] transition"
+                >
+                  + บันทึกครั้งแรก
+                </a>
+              </div>
             ) : (
-              <ul className="rounded-lg bg-surface border border-line overflow-hidden">
+              <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
                 {metrics.map((m) => (
                   <li key={m.id} className="tally-row px-4 py-3">
                     <div className="flex items-center justify-between">
@@ -243,7 +250,7 @@ function MetricTrendChart({
   return (
     <section>
       <h2 className="font-display text-sm tracked uppercase text-muted mb-3">{title}</h2>
-      <div className="h-40 bg-surface border border-line rounded-lg p-3">
+      <div className="h-40 bg-surface border border-line shadow-elevated rounded-lg p-3">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid stroke="#2E333A" vertical={false} />
@@ -265,7 +272,7 @@ function MetricTrendChart({
 
 function MiniStat({ label, value, unit, decimals = 1 }: { label: string; value: number | null | undefined; unit?: string; decimals?: number }) {
   return (
-    <div className="bg-surface border border-line rounded-lg px-4 py-3.5">
+    <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
       <p className="text-[11px] tracked uppercase text-muted mb-1">{label}</p>
       <p className="font-mono text-2xl tabular text-amber">
         {value !== null && value !== undefined ? value.toFixed(decimals) : '—'}
@@ -382,7 +389,7 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 bg-surface border border-line rounded-lg p-4">
+    <form id="metric-form" onSubmit={handleSubmit} className="space-y-3 bg-surface border border-line shadow-elevated rounded-lg p-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-sm tracked uppercase text-muted">บันทึกวัดผลใหม่</h2>
         <input
@@ -490,7 +497,7 @@ function PhotosTab({
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface border border-line rounded-lg p-4 space-y-3">
+      <div className="bg-surface border border-line shadow-elevated rounded-lg p-4 space-y-3">
         <h2 className="font-display text-sm tracked uppercase text-muted">เพิ่มรูป</h2>
         <input
           value={label}
@@ -546,7 +553,7 @@ function PhotosTab({
       <section>
         <h2 className="font-display text-sm tracked uppercase text-muted mb-3">รูปทั้งหมด</h2>
         {photos.length === 0 ? (
-          <p className="text-sm text-muted bg-surface border border-line rounded-lg px-4 py-6 text-center">
+          <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-6 text-center">
             ยังไม่มีรูป
           </p>
         ) : (
