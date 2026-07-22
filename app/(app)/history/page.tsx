@@ -7,6 +7,7 @@ import type { Workout } from '@/lib/types'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
+import EmptyState from '@/components/EmptyState'
 
 type Filter = 'all' | 'strength' | 'cardio'
 
@@ -215,9 +216,13 @@ function HistoryPageInner() {
       {actionError && <p className="text-xs text-rusttext">{actionError}</p>}
 
       {dates.length === 0 ? (
-        <p className="text-sm text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-8 text-center">
-          ยังไม่มีประวัติการออกกำลังกาย
-        </p>
+        <EmptyState
+          icon="🏋️"
+          title="ยังไม่มีประวัติการออกกำลังกาย"
+          message="เริ่มบันทึกครั้งแรก แล้วประวัติของคุณจะมาโชว์ที่นี่"
+          ctaHref="/log"
+          ctaLabel="+ บันทึกการออกกำลังกาย"
+        />
       ) : (
         <div className="space-y-5">
           {dates.map((date) => (
