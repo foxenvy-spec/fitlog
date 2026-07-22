@@ -32,8 +32,10 @@ import { computePushPullBalance, computeAIDailySummary } from '@/lib/aiCoach'
 import { VOLUME_MUSCLES, RECOVERY_MUSCLES } from '@/lib/muscle-groups'
 import { DEFAULT_DASHBOARD_PREFS, loadDashboardPrefs, saveDashboardPrefs, type DashboardPrefs } from '@/lib/dashboardPrefs'
 import AnimatedBarFill from '@/components/AnimatedBarFill'
+import GoalRing from '@/components/GoalRing'
 import DashboardSkeleton from '@/components/DashboardSkeleton'
 import InsightCard from '@/components/InsightCard'
+import TodayMuscleHeatmap from '@/components/TodayMuscleHeatmap'
 import ErrorState from '@/components/ErrorState'
 import Skeleton from '@/components/Skeleton'
 
@@ -351,7 +353,7 @@ export default function DashboardPage() {
       </div>
 
       {/* card 1: today's workout */}
-      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
         <div className="px-5 py-5">
           <p className="text-[10px] tracked uppercase text-muted">Today&apos;s Workout</p>
           <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -376,14 +378,9 @@ export default function DashboardPage() {
           </div>
 
           {progressPct !== null ? (
-            <div className="mt-2.5 space-y-1.5">
-              <div className="h-1.5 rounded-full bg-surface2 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-amber transition-all"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-2">
+            <div className="mt-3 flex items-center gap-4">
+              <GoalRing pct={progressPct} size={56} strokeWidth={6} ariaLabel="ความคืบหน้าวันนี้" />
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] text-muted">
                   <span className="text-ink font-mono">
                     {data.completedCount}/{data.todayExercises.length}
@@ -391,9 +388,11 @@ export default function DashboardPage() {
                   Exercises
                 </p>
                 {nextExerciseName && progressPct < 100 ? (
-                  <p className="text-[11px] text-muted truncate">
+                  <p className="text-[11px] text-muted truncate mt-0.5">
                     Next: <span className="text-ink">{nextExerciseName}</span>
                   </p>
+                ) : progressPct >= 100 ? (
+                  <p className="text-[11px] text-amber mt-0.5">ครบทุกท่าแล้ว 🎉</p>
                 ) : null}
               </div>
             </div>
@@ -427,9 +426,12 @@ export default function DashboardPage() {
         <QuickAction href="/coach" label="ถาม AI" icon="🤖" />
       </div>
 
+      {/* muscles trained today — heat-map chips built from today's workout rows */}
+      <TodayMuscleHeatmap todayWorkouts={data.todayWorkouts} />
+
       {/* card 2: recovery */}
       {prefs.showRecovery && (
-        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           <a href="/recovery" className="block px-5 py-5 active:bg-surface2 transition">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] tracked uppercase text-muted">Recovery</p>
@@ -491,7 +493,7 @@ export default function DashboardPage() {
       )}
 
       {/* card 4: weekly goal */}
-      <div className="rounded-lg bg-surface border border-line overflow-hidden">
+      <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
         <div className="px-5 py-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] tracked uppercase text-muted">Weekly Goal</p>
@@ -528,7 +530,7 @@ export default function DashboardPage() {
 
       {/* card 5 (optional): AI coach */}
       {prefs.showAICoach && (
-        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           <a href="/coach" className="block px-5 py-5 active:bg-surface2 transition">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] tracked uppercase text-muted">✨ AI Coach</p>
@@ -545,7 +547,7 @@ export default function DashboardPage() {
           on "what do I do now" (workout, recovery, goal). PR history/suggestions now
           live on the Statistics page alongside the rest of the analytics. */}
       {next && (
-        <div className="rounded-lg bg-surface border border-line overflow-hidden">
+        <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           <div className="px-4 py-3 flex items-center justify-between">
             <p className="text-[11px] text-muted">
               Next up: <span className="text-ink">{next.day.title}</span>
@@ -594,7 +596,7 @@ function QuickAction({ href, label, icon }: { href: string; label: string; icon:
   return (
     <a
       href={href}
-      className="rounded-lg bg-surface border border-line flex flex-col items-center justify-center gap-1 py-3.5 text-muted hover:text-amber hover:border-amber/50 transition focus-visible:text-amber"
+      className="rounded-lg bg-surface border border-line shadow-elevated flex flex-col items-center justify-center gap-1 py-3.5 text-muted hover:text-amber hover:border-amber/50 transition focus-visible:text-amber"
     >
       <span className="text-lg">{icon}</span>
       <span className="text-[10px] font-display tracked uppercase">{label}</span>
