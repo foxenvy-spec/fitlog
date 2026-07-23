@@ -36,6 +36,9 @@ export interface SessionSetState {
   weightKg: number | null
   rpe: number | null
   logged: boolean
+  // ผู้ใช้กด "ข้ามท่านี้" ไปแล้วในเซสชันนี้ — ต่างจาก logged=false เฉยๆ (แค่ยังไม่ถึงคิว)
+  // ใช้แยกแยะว่าท่านี้ถูก "จบดูแล้ว" รอบนี้หรือยัง สำหรับตอนหาท่าถัดไปที่ยังไม่ถูกดู (ดู nextUnvisitedIndex)
+  skipped: boolean
   // id ของแถวใน workouts ที่บันทึกไปแล้วสำหรับท่านี้ในเซสชันนี้ — ใช้เช็คว่าถ้ากดบันทึกซ้ำ
   // (เช่น กดย้อนกลับมาแก้ท่าที่ทำไปแล้วผ่าน progress chips) ต้อง UPDATE แถวเดิม ไม่ใช่ INSERT ซ้ำ
   workoutId: string | null
@@ -50,6 +53,7 @@ export function initSessionSet(ex: ProgramExercise): SessionSetState {
     weightKg: ex.default_weight_kg,
     rpe: rirToRpe(parseRangeToNumber(ex.target_rir)),
     logged: false,
+    skipped: false,
     workoutId: null,
   }
 }
@@ -109,6 +113,7 @@ export function initSessionStates(
         weightKg: last ? last.weightKg : ex.default_weight_kg,
         rpe: match.rpe ?? rirToRpe(parseRangeToNumber(ex.target_rir)),
         logged: true,
+        skipped: false,
         workoutId: match.id,
       }
       return [ex.id, state]
@@ -124,6 +129,23 @@ export function firstUnfinishedIndex(
 ): number {
   const idx = exercises.findIndex((ex) => !states[ex.id]?.logged)
   return idx === -1 ? Math.max(0, exercises.length - 1) : idx
+}
+
+// หาท่า "ถัดไป" ที่ยังไม่ถูกบันทึกหรือข้าม ไล่วนจาก currentIndex+1 กลับมาครบรอบ (wrap around)
+// คืน null เมื่อทุกท่าถูกบันทึก/ข้ามไปหมดแล้วเท่านั้น — เพื่อไม่ให้เซสชันจบก่อนเวลาแค่เพราะ
+// ผู้ใช้กดผ่าน progress chips ไปทำท่าที่อยู่ท้าย array ก่อน (ตำแหน่งใน array ไม่ได้แปลว่าคือท่าสุดท้ายที่เหลือ)
+export function nextUnvisitedIndex(
+  exercises: ProgramExercise[],
+  states: Record<string, Pick<SessionSetState, 'logged' | 'skipped'>>,
+  currentIndex: number
+): number | null {
+  const n = exercises.length
+  for (let offset = 1; offset <= n; offset++) {
+    const i = (currentIndex + offset) % n
+    const s = states[exercises[i].id]
+    if (!s?.logged && !s?.skipped) return i
+  }
+  return null
 }
 
 export interface SessionSummary {

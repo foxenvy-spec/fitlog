@@ -4,6 +4,7 @@ import {
   initSessionSet,
   initSessionStates,
   firstUnfinishedIndex,
+  nextUnvisitedIndex,
   computeSessionSummary,
   aggregateMuscleLoads,
 } from './workoutSession'
@@ -65,6 +66,7 @@ describe('initSessionSet', () => {
     expect(state.weightKg).toBe(60)
     expect(state.rpe).toBe(8.5) // rir avg 1.5 -> rpe 8.5
     expect(state.logged).toBe(false)
+    expect(state.skipped).toBe(false)
   })
 
   it('handles missing targets gracefully', () => {
@@ -131,6 +133,59 @@ describe('firstUnfinishedIndex', () => {
     const exercises = [makeExercise({ id: 'ex-1' }), makeExercise({ id: 'ex-2' })]
     const states = { 'ex-1': { logged: true }, 'ex-2': { logged: true } }
     expect(firstUnfinishedIndex(exercises, states)).toBe(1)
+  })
+})
+
+describe('nextUnvisitedIndex', () => {
+  it('does not end the session just because the last array position was logged first', () => {
+    // จำลองบั๊ก: ผู้ใช้กด progress chip ไปทำท่าสุดท้าย (index 2) ก่อนเป็นท่าแรก
+    const exercises = [
+      makeExercise({ id: 'ex-1' }),
+      makeExercise({ id: 'ex-2' }),
+      makeExercise({ id: 'ex-3' }),
+    ]
+    const states = {
+      'ex-1': { logged: false, skipped: false },
+      'ex-2': { logged: false, skipped: false },
+      'ex-3': { logged: true, skipped: false },
+    }
+    // อยู่ที่ index 2 (ท่าสุดท้าย) แต่ยังมีท่า 0,1 ไม่เสร็จ ต้องวนกลับไปหาแทนที่จะจบเซสชัน
+    expect(nextUnvisitedIndex(exercises, states, 2)).toBe(0)
+  })
+
+  it('skips over already-logged or already-skipped exercises when wrapping', () => {
+    const exercises = [
+      makeExercise({ id: 'ex-1' }),
+      makeExercise({ id: 'ex-2' }),
+      makeExercise({ id: 'ex-3' }),
+    ]
+    const states = {
+      'ex-1': { logged: true, skipped: false },
+      'ex-2': { logged: false, skipped: true },
+      'ex-3': { logged: true, skipped: false },
+    }
+    // ท่าเดียวที่เหลือคือ... ไม่มี (ex-2 ถูกข้ามไปแล้ว) -> จบเซสชัน
+    expect(nextUnvisitedIndex(exercises, states, 0)).toBeNull()
+  })
+
+  it('returns null only when every exercise has been logged or skipped', () => {
+    const exercises = [makeExercise({ id: 'ex-1' }), makeExercise({ id: 'ex-2' })]
+    const states = { 'ex-1': { logged: true, skipped: false }, 'ex-2': { logged: false, skipped: true } }
+    expect(nextUnvisitedIndex(exercises, states, 0)).toBeNull()
+  })
+
+  it('advances to the next exercise in order during normal linear play', () => {
+    const exercises = [
+      makeExercise({ id: 'ex-1' }),
+      makeExercise({ id: 'ex-2' }),
+      makeExercise({ id: 'ex-3' }),
+    ]
+    const states = {
+      'ex-1': { logged: true, skipped: false },
+      'ex-2': { logged: false, skipped: false },
+      'ex-3': { logged: false, skipped: false },
+    }
+    expect(nextUnvisitedIndex(exercises, states, 0)).toBe(1)
   })
 })
 
