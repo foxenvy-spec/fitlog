@@ -227,8 +227,22 @@ export default function WorkoutHeatmap() {
             </div>
             <ul className="space-y-2">
               {(byDate[selectedDate] ?? []).map((w) => {
-                const sets = setsByWorkoutId[w.id] ?? []
-                const hasSets = w.type === 'strength' && sets.length > 0
+                const realSets = setsByWorkoutId[w.id] ?? []
+                // session/program flow เก็บ reps/น้ำหนักเป็นค่าเดียวต่อท่า ไม่มี workout_sets จริง —
+                // จำลองเป็นหลายเซ็ตค่าเท่ากันจาก sets/reps/weight_kg แทน (เหมือนที่หน้า /log ทำกับ
+                // แถวเก่าก่อนมี workout_sets) อย่างน้อยยังกดดูจำนวนเซ็ตได้ แม้ตัวเลขจะซ้ำกันทุกเซ็ตก็ตาม
+                const displaySets =
+                  realSets.length > 0
+                    ? realSets
+                    : w.type === 'strength' && w.sets
+                      ? Array.from({ length: w.sets }, (_, i) => ({
+                          id: `${w.id}-synthetic-${i}`,
+                          set_number: i + 1,
+                          reps: w.reps,
+                          weight_kg: w.weight_kg,
+                        }))
+                      : []
+                const hasSets = w.type === 'strength' && displaySets.length > 0
                 const expanded = expandedId === w.id
                 return (
                   <li key={w.id} className="rounded-md bg-surface2 overflow-hidden">
@@ -263,7 +277,7 @@ export default function WorkoutHeatmap() {
 
                     {expanded && (
                       <div className="px-3 pb-2.5 pt-0.5 grid grid-cols-3 gap-1.5">
-                        {sets.map((s) => (
+                        {displaySets.map((s) => (
                           <div key={s.id} className="rounded bg-bg/40 px-2 py-1.5 text-center">
                             <p className="text-[9px] tracked uppercase text-muted">เซ็ต {s.set_number}</p>
                             <p className="text-[11px] font-mono text-ink mt-0.5">
