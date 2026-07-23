@@ -103,7 +103,11 @@ create table if not exists public.body_metrics (
   hip_cm numeric,
   arm_cm numeric,
   thigh_cm numeric,
-  body_water_pct numeric,
+  body_fat_kg numeric,
+  body_water_kg numeric,
+  inorganic_salt_kg numeric,
+  protein_kg numeric,
+  skeletal_muscle_kg numeric,
   visceral_fat_grade numeric,
   bmr_kcal numeric,
   notes text,
@@ -113,12 +117,33 @@ create table if not exists public.body_metrics (
 -- migrate existing installs that already have the table without these columns
 alter table public.body_metrics add column if not exists arm_cm numeric;
 alter table public.body_metrics add column if not exists thigh_cm numeric;
-alter table public.body_metrics add column if not exists body_water_pct numeric;
 alter table public.body_metrics add column if not exists visceral_fat_grade numeric;
 alter table public.body_metrics add column if not exists bmr_kcal numeric;
+-- เดิมเป็น body_water_pct (สัดส่วน %) — เปลี่ยนเป็น body_water_kg (มวลจริง หน่วยกก.) ให้ตรงกับรายงานจากเครื่องชั่ง bioimpedance
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'body_metrics' and column_name = 'body_water_pct'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'body_metrics' and column_name = 'body_water_kg'
+  ) then
+    alter table public.body_metrics rename column body_water_pct to body_water_kg;
+  end if;
+end $$;
+alter table public.body_metrics add column if not exists body_water_kg numeric;
+alter table public.body_metrics add column if not exists body_fat_kg numeric;
+alter table public.body_metrics add column if not exists inorganic_salt_kg numeric;
+alter table public.body_metrics add column if not exists protein_kg numeric;
+alter table public.body_metrics add column if not exists skeletal_muscle_kg numeric;
 comment on column public.body_metrics.arm_cm is 'รอบต้นแขน (ซม.)';
 comment on column public.body_metrics.thigh_cm is 'รอบต้นขา (ซม.)';
-comment on column public.body_metrics.body_water_pct is 'สัดส่วนน้ำในร่างกาย (%) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.body_water_kg is 'น้ำในร่างกาย (กก.) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.body_fat_kg is 'มวลไขมัน (กก.) — จากเครื่องชั่ง bioimpedance (ต่างจาก body_fat_pct ซึ่งเป็น %)';
+comment on column public.body_metrics.inorganic_salt_kg is 'เกลือแร่/มวลกระดูก (กก.) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.protein_kg is 'โปรตีนในร่างกาย (กก.) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.skeletal_muscle_kg is 'กล้ามเนื้อโครงร่าง (กก.) — จากเครื่องชั่ง bioimpedance (ต่างจาก muscle_kg ซึ่งเป็นกล้ามเนื้อรวม)';
 comment on column public.body_metrics.visceral_fat_grade is 'ระดับไขมันช่องท้อง (visceral fat grade) — จากเครื่องชั่ง bioimpedance';
 comment on column public.body_metrics.bmr_kcal is 'อัตราการเผาผลาญพื้นฐาน (BMR, kcal/วัน) — จากเครื่องชั่ง bioimpedance';
 
