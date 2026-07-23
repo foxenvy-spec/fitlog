@@ -3,8 +3,10 @@
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Workout } from '@/lib/types'
+import type { Workout, WorkoutSet } from '@/lib/types'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
+import { computeExerciseProgress } from '@/lib/workoutDisplay'
+import ExerciseCard, { buildDisplaySets } from '@/components/ExerciseCard'
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
@@ -37,7 +39,10 @@ function HistoryPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [exerciseFilter, setExerciseFilter] = useState<string | null>(searchParams.get('exercise'))
+  const [search, setSearch] = useState('')
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [setsByWorkoutId, setSetsByWorkoutId] = useState<Record<string, WorkoutSet[]>>({})
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<Filter>('all')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -59,8 +64,26 @@ function HistoryPageInner() {
       setLoading(false)
       return
     }
-    setWorkouts((data as Workout[]) ?? [])
+    const rows = (data as Workout[]) ?? []
+    setWorkouts(rows)
     setLoading(false)
+
+    // ดึงรายละเอียดทีละเซ็ตของท่าเวทมาในทีเดียว ใช้เปิดดู "Set Card" แบบละเอียดต่อรายการ
+    const strengthIds = rows.filter((w) => w.type === 'strength').map((w) => w.id)
+    if (strengthIds.length > 0) {
+      const { data: setRows } = await supabase
+        .from('workout_sets')
+        .select('*')
+        .in('workout_id', strengthIds)
+        .order('set_number')
+      const byId: Record<string, WorkoutSet[]> = {}
+      ;((setRows as WorkoutSet[]) ?? []).forEach((s) => {
+        ;(byId[s.workout_id] ??= []).push(s)
+      })
+      setSetsByWorkoutId(byId)
+    } else {
+      setSetsByWorkoutId({})
+    }
   }, [supabase])
 
   useEffect(() => {
@@ -149,13 +172,37 @@ function HistoryPageInner() {
     }
   }
 
-  const filtered = workouts.filter(
-    (w) => (filter === 'all' || w.type === filter) && (!exerciseFilter || w.exercise_name === exerciseFilter)
-  )
+  const q = search.trim().toLowerCase()
+  const filtered = workouts.filter((w) => {
+    if (filter !== 'all' && w.type !== filter) return false
+    if (exerciseFilter && w.exercise_name !== exerciseFilter) return false
+    if (q) {
+      const haystack = (w.type === 'strength' ? w.exercise_name : w.cardio_type) ?? ''
+      if (!haystack.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
 
   function clearExerciseFilter() {
     setExerciseFilter(null)
     router.replace('/history')
+  }
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function expandAll() {
+    setExpandedIds(new Set(filtered.filter((w) => w.type === 'strength').map((w) => w.id)))
+  }
+
+  function collapseAll() {
+    setExpandedIds(new Set())
   }
 
   const grouped = filtered.reduce<Record<string, Workout[]>>((acc, w) => {
@@ -213,7 +260,29 @@ function HistoryPageInner() {
         </button>
       </div>
 
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted pointer-events-none">🔍</span>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ค้นหาท่าออกกำลังกาย..."
+          className="input pl-9 text-sm"
+        />
+      </div>
+
       {actionError && <p className="text-xs text-rusttext">{actionError}</p>}
+
+      {dates.length > 0 && (
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={expandAll} className="text-[11px] tracked uppercase text-muted hover:text-amber transition">
+            Expand All
+          </button>
+          <span className="text-line">|</span>
+          <button type="button" onClick={collapseAll} className="text-[11px] tracked uppercase text-muted hover:text-amber transition">
+            Collapse All
+          </button>
+        </div>
+      )}
 
       {dates.length === 0 ? (
         <EmptyState
@@ -224,57 +293,41 @@ function HistoryPageInner() {
           ctaLabel="+ บันทึกการออกกำลังกาย"
         />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5 md:items-start">
           {dates.map((date) => (
             <div key={date}>
               <p className="text-xs font-mono tracked text-muted mb-2 uppercase">{formatThaiDate(date)}</p>
-              <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
+              <ul className="space-y-2">
                 {grouped[date].map((w) => (
-                  <li key={w.id} className="tally-row flex items-center justify-between px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-ink text-sm truncate">
-                        {w.type === 'strength' ? (
-                          <>
-                            <span className="text-steel font-display tracked uppercase text-xs mr-2">STR</span>
-                            {w.exercise_name ? (
-                              <a
-                                href={`/exercises/${encodeURIComponent(w.exercise_name)}`}
-                                className="hover:text-amber hover:underline"
-                              >
-                                {w.exercise_name}
-                              </a>
-                            ) : (
-                              '—'
-                            )}{' '}
-                            — {w.sets}×{w.reps} @ {format(w.weight_kg)}
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-rusttext font-display tracked uppercase text-xs mr-2">CAR</span>
-                            {w.cardio_type} — {w.distance_km}km / {w.duration_min}min
-                          </>
-                        )}
-                      </p>
-                      {w.notes && <p className="text-xs text-muted mt-0.5 truncate">{w.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 ml-3">
-                      <a
-                        href={`/log?edit=${w.id}`}
-                        className="text-muted hover:text-amber text-xs"
-                        aria-label="แก้ไขรายการ"
-                      >
-                        แก้ไข
-                      </a>
-                      <button
-                        onClick={() => handleDelete(w.id)}
-                        disabled={deletingId === w.id}
-                        className="text-muted hover:text-rust text-xs disabled:opacity-50"
-                        aria-label="ลบรายการ"
-                      >
-                        {deletingId === w.id ? 'กำลังลบ...' : 'ลบ'}
-                      </button>
-                    </div>
-                  </li>
+                  <ExerciseCard
+                    key={w.id}
+                    workout={w}
+                    displaySets={buildDisplaySets(w, setsByWorkoutId[w.id] ?? [])}
+                    progress={computeExerciseProgress(w, workouts)}
+                    format={format}
+                    expanded={expandedIds.has(w.id)}
+                    onToggleExpand={() => toggleExpand(w.id)}
+                    nameHref={w.exercise_name ? `/exercises/${encodeURIComponent(w.exercise_name)}` : undefined}
+                    actions={
+                      <>
+                        <a
+                          href={`/log?edit=${w.id}`}
+                          className="text-muted hover:text-amber text-xs"
+                          aria-label="แก้ไขรายการ"
+                        >
+                          แก้ไข
+                        </a>
+                        <button
+                          onClick={() => handleDelete(w.id)}
+                          disabled={deletingId === w.id}
+                          className="text-muted hover:text-rust text-xs disabled:opacity-50"
+                          aria-label="ลบรายการ"
+                        >
+                          {deletingId === w.id ? 'กำลังลบ...' : 'ลบ'}
+                        </button>
+                      </>
+                    }
+                  />
                 ))}
               </ul>
             </div>
