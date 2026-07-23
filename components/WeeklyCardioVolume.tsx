@@ -7,6 +7,7 @@ import { getWeekRange, volumeStatus, type VolumeStatus } from '@/lib/dashboardSt
 import { computeWeeklyCardioVolume } from '@/lib/weeklyCardioVolume'
 import { fetchWeeklyCardioTargets } from '@/lib/weeklyCardioTargets'
 import { HR_ZONES, DEFAULT_MAX_HEART_RATE } from '@/lib/heartRate'
+import { computeVO2Max, classifyVO2Max } from '@/lib/vo2max'
 import type { Workout, Profile } from '@/lib/types'
 import { todayDayOfWeek } from '@/lib/weekdays'
 import AnimatedBarFill from './AnimatedBarFill'
@@ -77,20 +78,29 @@ export default function WeeklyCardioVolume() {
       const [{ data: workouts }, { data: metric }, { data: profileRow }] = await Promise.all([
         supabase
           .from('workouts')
-          .select('duration_min, distance_km, cardio_type, avg_heart_rate, calories_kcal')
+          .select('duration_min, distance_km, cardio_type, avg_heart_rate, calories_kcal, cadence')
           .eq('type', 'cardio')
           .gte('performed_at', start)
           .lte('performed_at', end),
         supabase.from('body_metrics').select('weight_kg').order('measured_at', { ascending: false }).limit(1).maybeSingle(),
         user
-          ? supabase.from('profiles').select('max_heart_rate').eq('user_id', user.id).maybeSingle()
-          : Promise.resolve({ data: null as Pick<Profile, 'max_heart_rate'> | null }),
+          ? supabase
+              .from('profiles')
+              .select('max_heart_rate, resting_heart_rate')
+              .eq('user_id', user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null as Pick<Profile, 'max_heart_rate' | 'resting_heart_rate'> | null }),
       ])
 
       const maxHeartRate = profileRow?.max_heart_rate ?? DEFAULT_MAX_HEART_RATE
+      const restingHeartRate = profileRow?.resting_heart_rate ?? null
       const bodyWeightKg = (metric as { weight_kg: number | null } | null)?.weight_kg ?? null
       const cardioWorkouts = (workouts as Workout[]) ?? []
-      return { volume: computeWeeklyCardioVolume(cardioWorkouts, bodyWeightKg, maxHeartRate), maxHeartRate }
+      return {
+        volume: computeWeeklyCardioVolume(cardioWorkouts, bodyWeightKg, maxHeartRate),
+        maxHeartRate,
+        restingHeartRate,
+      }
     },
     staleTime: 60_000,
   })
@@ -104,6 +114,8 @@ export default function WeeklyCardioVolume() {
   })
 
   const volume = data?.volume
+  const vo2max = data ? computeVO2Max(data.maxHeartRate, data.restingHeartRate) : null
+  const vo2maxCategory = vo2max !== null ? classifyVO2Max(vo2max) : null
 
   return (
     <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
@@ -125,7 +137,7 @@ export default function WeeklyCardioVolume() {
             onClick={() => setHrSettingsOpen(true)}
             className="text-[11px] text-muted hover:text-ink border border-line rounded px-2 py-1"
           >
-            ชีพจรสูงสุด
+            ชีพจร & VO2Max
           </button>
         </div>
       </div>
@@ -145,6 +157,24 @@ export default function WeeklyCardioVolume() {
               <MetricTile label="Calories" value={volume.totalCalories.toLocaleString('th-TH')} unit="kcal" />
               <MetricTile label="Distance" value={volume.totalDistanceKm.toLocaleString('th-TH')} unit="กม." />
             </div>
+
+            {(volume.avgCadenceSpm !== null || volume.avgCadenceRpm !== null || vo2max !== null) && (
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {volume.avgCadenceSpm !== null && (
+                  <MetricTile label="Avg Cadence" value={String(volume.avgCadenceSpm)} unit="spm" />
+                )}
+                {volume.avgCadenceRpm !== null && (
+                  <MetricTile label="Avg Cadence" value={String(volume.avgCadenceRpm)} unit="rpm" />
+                )}
+                {vo2max !== null && (
+                  <MetricTile
+                    label="VO2Max"
+                    value={String(vo2max)}
+                    unit={vo2maxCategory ? `ml/kg/min · ${vo2maxCategory.label}` : 'ml/kg/min'}
+                  />
+                )}
+              </div>
+            )}
 
             <div className="mt-3 space-y-2.5">
               <p className="text-[10px] tracked uppercase text-muted">เป้าหมายสัปดาห์นี้</p>
@@ -210,6 +240,7 @@ export default function WeeklyCardioVolume() {
       <HeartRateSettings
         open={hrSettingsOpen}
         maxHeartRate={data?.maxHeartRate ?? DEFAULT_MAX_HEART_RATE}
+        restingHeartRate={data?.restingHeartRate ?? null}
         onClose={() => setHrSettingsOpen(false)}
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ['weekly-cardio-volume'] })

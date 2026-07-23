@@ -8,6 +8,7 @@ export interface ExtractedCardioData {
   duration_min: number | null
   avg_heart_rate: number | null
   calories_kcal: number | null
+  cadence: number | null
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -68,6 +69,7 @@ export default function ImportCardioPhotoGemini({ onExtracted }: { onExtracted: 
     duration_min: 'เวลา',
     avg_heart_rate: 'ชีพจรเฉลี่ย',
     calories_kcal: 'แคลอรี่',
+    cadence: 'Cadence',
   }
 
   return (
