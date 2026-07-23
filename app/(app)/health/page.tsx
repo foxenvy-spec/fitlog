@@ -198,6 +198,38 @@ export default function HealthPage() {
       .map((m) => ({ label: shortLabel(m.measured_at), value: m.bmr_kcal as number }))
   }, [metrics])
 
+  // Muscle fat analysis (Low/Standard/High bar) — ใช้ค่าล่าสุดของแต่ละตัว จับคู่กับช่วงมาตรฐาน
+  // ล่าสุดที่เคยกรอกไว้ (ไม่จำเป็นต้องมาจากแถวเดียวกัน เผื่อผู้ใช้กรอกช่วงไว้แค่ครั้งแรก)
+  function latestNonNull(field: keyof BodyMetric): number | null {
+    for (const m of metrics) {
+      const v = m[field]
+      if (typeof v === 'number') return v
+    }
+    return null
+  }
+
+  const muscleFatItems = useMemo(() => {
+    const defs: { label: string; value: number | null; low: number | null; high: number | null }[] = [
+      { label: 'น้ำหนัก', value: latest?.weight_kg ?? null, low: latestNonNull('weight_range_low'), high: latestNonNull('weight_range_high') },
+      {
+        label: 'กล้ามเนื้อโครงร่าง',
+        value: latest?.skeletal_muscle_kg ?? null,
+        low: latestNonNull('skeletal_muscle_range_low'),
+        high: latestNonNull('skeletal_muscle_range_high'),
+      },
+      { label: 'มวลไขมัน', value: latest?.body_fat_kg ?? null, low: latestNonNull('fat_mass_range_low'), high: latestNonNull('fat_mass_range_high') },
+    ]
+    return defs
+      .filter((d) => d.value !== null && d.low !== null && d.high !== null && (d.high as number) > (d.low as number))
+      .map((d) => ({
+        label: d.label,
+        value: toDisplay(d.value as number),
+        low: toDisplay(d.low as number),
+        high: toDisplay(d.high as number),
+      }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metrics, latest, toDisplay])
+
   if (loading) {
     return <LoadingState />
   }
@@ -250,6 +282,14 @@ export default function HealthPage() {
           </div>
 
           <HeightSetting profile={profile} onSaved={(p) => setProfile(p)} />
+
+          {muscleFatItems.length > 0 ? (
+            <MuscleFatAnalysisChart items={muscleFatItems} unit={unit} />
+          ) : (
+            <p className="text-[11px] text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-3">
+              อยากดูกราฟ Muscle Fat Analysis (น้ำหนัก/กล้ามเนื้อโครงร่าง/มวลไขมัน เทียบช่วงมาตรฐาน) — กรอกช่วงมาตรฐานจากรายงานเครื่องชั่งในฟอร์มด้านล่าง (ช่อง &quot;ช่วงมาตรฐาน&quot;) สักครั้ง แล้วกราฟจะขึ้นให้อัตโนมัติ
+            </p>
+          )}
 
           {weightTrend.length > 1 && (
             <MetricTrendChart title="แนวโน้มน้ำหนัก" data={weightTrend} color="#E8A33D" unit={unit} />
@@ -389,6 +429,74 @@ function MetricTrendChart({
   )
 }
 
+function MuscleFatAnalysisChart({
+  items,
+  unit,
+}: {
+  items: { label: string; value: number; low: number; high: number }[]
+  unit: string
+}) {
+  return (
+    <section>
+      <h2 className="font-display text-sm tracked uppercase text-muted mb-3">Muscle Fat Analysis</h2>
+      <div className="bg-surface border border-line shadow-elevated rounded-lg p-4 space-y-5">
+        {items.map((it) => (
+          <MuscleFatBarRow key={it.label} {...it} unit={unit} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MuscleFatBarRow({
+  label,
+  value,
+  low,
+  high,
+  unit,
+}: {
+  label: string
+  value: number
+  low: number
+  high: number
+  unit: string
+}) {
+  const span = Math.max(high - low, 0.1)
+  const min = low - span * 1.4
+  const max = high + span * 1.4
+  const pct = (v: number) => (Math.min(Math.max(v, min), max) - min) / (max - min) * 100
+  const lowPct = pct(low)
+  const highPct = pct(high)
+  const valuePct = pct(value)
+  const zone = value < low ? 'ต่ำ' : value > high ? 'สูง' : 'มาตรฐาน'
+  const zoneColor = value < low ? 'text-steel' : value > high ? 'text-rusttext' : 'text-moss'
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5">
+        <span className="text-xs text-ink">{label}</span>
+        <span className="text-sm font-mono tabular">
+          {value.toFixed(1)} {unit}
+          <span className={`text-[10px] ml-1.5 ${zoneColor}`}>{zone}</span>
+        </span>
+      </div>
+      <div className="relative h-2 rounded-full bg-surface2 overflow-hidden">
+        <div className="absolute inset-y-0 bg-line" style={{ left: 0, width: `${lowPct}%` }} />
+        <div className="absolute inset-y-0 bg-moss/50" style={{ left: `${lowPct}%`, width: `${highPct - lowPct}%` }} />
+        <div className="absolute inset-y-0 bg-line" style={{ left: `${highPct}%`, right: 0 }} />
+        <div
+          className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-amber border-2 border-surface shadow"
+          style={{ left: `${valuePct}%`, transform: 'translate(-50%, -50%)' }}
+        />
+      </div>
+      <div className="flex justify-between text-[9px] text-muted mt-1">
+        <span>ต่ำสุด {low.toFixed(1)}</span>
+        <span>สูงสุด {high.toFixed(1)}</span>
+      </div>
+    </div>
+  )
+}
+
 function MiniStat({ label, value, unit, decimals = 1 }: { label: string; value: number | null | undefined; unit?: string; decimals?: number }) {
   return (
     <div className="bg-surface border border-line shadow-elevated rounded-lg px-4 py-3.5">
@@ -477,6 +585,13 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   const [skeletalMuscle, setSkeletalMuscle] = useState('')
   const [visceralFat, setVisceralFat] = useState('')
   const [bmr, setBmr] = useState('')
+  const [showRanges, setShowRanges] = useState(false)
+  const [weightRangeLow, setWeightRangeLow] = useState('')
+  const [weightRangeHigh, setWeightRangeHigh] = useState('')
+  const [skeletalRangeLow, setSkeletalRangeLow] = useState('')
+  const [skeletalRangeHigh, setSkeletalRangeHigh] = useState('')
+  const [fatMassRangeLow, setFatMassRangeLow] = useState('')
+  const [fatMassRangeHigh, setFatMassRangeHigh] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -509,6 +624,12 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
       skeletal_muscle_kg: skeletalMuscle ? toKg(Number(skeletalMuscle)) : null,
       visceral_fat_grade: visceralFat ? Number(visceralFat) : null,
       bmr_kcal: bmr ? Number(bmr) : null,
+      weight_range_low: weightRangeLow ? toKg(Number(weightRangeLow)) : null,
+      weight_range_high: weightRangeHigh ? toKg(Number(weightRangeHigh)) : null,
+      skeletal_muscle_range_low: skeletalRangeLow ? toKg(Number(skeletalRangeLow)) : null,
+      skeletal_muscle_range_high: skeletalRangeHigh ? toKg(Number(skeletalRangeHigh)) : null,
+      fat_mass_range_low: fatMassRangeLow ? toKg(Number(fatMassRangeLow)) : null,
+      fat_mass_range_high: fatMassRangeHigh ? toKg(Number(fatMassRangeHigh)) : null,
     }
     const { data, error } = await supabase.from('body_metrics').insert(payload).select().single()
     setSaving(false)
@@ -532,6 +653,12 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
     setSkeletalMuscle('')
     setVisceralFat('')
     setBmr('')
+    setWeightRangeLow('')
+    setWeightRangeHigh('')
+    setSkeletalRangeLow('')
+    setSkeletalRangeHigh('')
+    setFatMassRangeLow('')
+    setFatMassRangeHigh('')
   }
 
   return (
@@ -561,6 +688,31 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
         <LabeledInput label={`กล้ามเนื้อโครงร่าง (${unit})`} value={skeletalMuscle} onChange={setSkeletalMuscle} />
         <LabeledInput label="ไขมันช่องท้อง (ระดับ)" value={visceralFat} onChange={setVisceralFat} />
         <LabeledInput label="BMR (kcal)" value={bmr} onChange={setBmr} />
+      </div>
+
+      <div className="border-t border-line pt-3">
+        <button
+          type="button"
+          onClick={() => setShowRanges((v) => !v)}
+          className="text-[11px] text-steel underline"
+        >
+          {showRanges ? 'ซ่อนช่วงมาตรฐาน' : '+ กรอกช่วงมาตรฐาน (สำหรับกราฟ Muscle Fat Analysis)'}
+        </button>
+        {showRanges && (
+          <div className="mt-3 space-y-3">
+            <p className="text-[10px] text-muted">
+              คัดลอกจากตาราง &quot;Muscle fat analysis&quot; ในรายงานเครื่องชั่ง (Low–High) — กรอกครั้งแรกครั้งเดียวก็พอ ใช้ค่าล่าสุดที่เคยกรอกไว้ต่อได้เรื่อยๆ
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <LabeledInput label={`น้ำหนัก ต่ำสุด (${unit})`} value={weightRangeLow} onChange={setWeightRangeLow} />
+              <LabeledInput label={`น้ำหนัก สูงสุด (${unit})`} value={weightRangeHigh} onChange={setWeightRangeHigh} />
+              <LabeledInput label={`กล้ามเนื้อโครงร่าง ต่ำสุด (${unit})`} value={skeletalRangeLow} onChange={setSkeletalRangeLow} />
+              <LabeledInput label={`กล้ามเนื้อโครงร่าง สูงสุด (${unit})`} value={skeletalRangeHigh} onChange={setSkeletalRangeHigh} />
+              <LabeledInput label={`มวลไขมัน ต่ำสุด (${unit})`} value={fatMassRangeLow} onChange={setFatMassRangeLow} />
+              <LabeledInput label={`มวลไขมัน สูงสุด (${unit})`} value={fatMassRangeHigh} onChange={setFatMassRangeHigh} />
+            </div>
+          </div>
+        )}
       </div>
       {error && <p className="text-sm text-rusttext">{error}</p>}
       <button
