@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -567,12 +568,16 @@ function LogPageInner() {
               {(selectedExercise?.imageUrl || highlighterMuscles.length > 0) && (
                 <div className="mt-2 flex items-start gap-2">
                   {selectedExercise?.imageUrl && (
-                    <img
-                      src={selectedExercise.imageUrl}
-                      alt={selectedExercise.name}
-                      loading="lazy"
-                      className="flex-1 min-w-0 rounded-xl bg-panel object-cover aspect-square"
-                    />
+                    <div className="relative flex-1 min-w-0 aspect-square rounded-xl bg-panel overflow-hidden">
+                      <Image
+                        src={selectedExercise.imageUrl}
+                        alt={selectedExercise.name}
+                        fill
+                        sizes="200px"
+                        loading="lazy"
+                        className="object-cover"
+                      />
+                    </div>
                   )}
                   {highlighterMuscles.length > 0 && (
                     <div className="flex-1 min-w-0 rounded-xl bg-panel flex items-center justify-center py-2 self-stretch">
