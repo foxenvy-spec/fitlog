@@ -7,11 +7,14 @@ import { todayDayOfWeek, todayStr } from '@/lib/weekdays'
 import { MUSCLE_GROUP_COLORS, RECOVERY_MUSCLES, type MuscleGroup } from '@/lib/muscle-groups'
 import {
   parseRestSeconds,
-  initSessionSet,
+  initSessionStates,
+  firstUnfinishedIndex,
   computeSessionSummary,
   aggregateMuscleLoads,
   getSkippedExercises,
   type SessionSetState,
+  type LoggedWorkoutRow,
+  type LoggedSetRow,
 } from '@/lib/workoutSession'
 import { estimateCaloriesToday } from '@/lib/dashboardStats'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
@@ -109,12 +112,34 @@ export default function SessionPage() {
       return
     }
 
+    // ดึงท่าที่บันทึกไปแล้ว "วันนี้" กลับมา (เผื่อกดออกจากหน้านี้/รีเฟรชระหว่างเล่น)
+    // ไม่งั้นทุกครั้งที่กลับเข้ามาใหม่ ระบบจะลืมว่าท่าไหนทำไปแล้วบ้างและเริ่มนับจากศูนย์เสมอ
+    const exerciseNames = typedExercises.map((ex) => ex.exercise_name)
+    const { data: workoutRows } = await supabase
+      .from('workouts')
+      .select('id, exercise_name, rpe')
+      .eq('user_id', user.id)
+      .eq('type', 'strength')
+      .eq('performed_at', todayStr())
+      .in('exercise_name', exerciseNames)
+
+    const typedWorkoutRows = (workoutRows as LoggedWorkoutRow[]) ?? []
+    const workoutIds = typedWorkoutRows.map((w) => w.id)
+
+    const { data: setRows } =
+      workoutIds.length > 0
+        ? await supabase
+            .from('workout_sets')
+            .select('workout_id, set_number, reps, weight_kg')
+            .in('workout_id', workoutIds)
+        : { data: [] as LoggedSetRow[] }
+
+    const initialStates = initSessionStates(typedExercises, typedWorkoutRows, (setRows as LoggedSetRow[]) ?? [])
+
     setDay(dayRow as ProgramDay)
     setExercises(typedExercises)
-    setStates(
-      Object.fromEntries(typedExercises.map((ex) => [ex.id, initSessionSet(ex)]))
-    )
-    setIndex(0)
+    setStates(initialStates)
+    setIndex(firstUnfinishedIndex(typedExercises, initialStates))
     setPhase('active')
   }, [supabase])
 
