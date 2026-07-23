@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { searchExercises, type ExerciseDef } from '@/lib/exercises'
 import { equipmentLabel } from '@/lib/exerciseLibrary'
 import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
@@ -91,9 +92,11 @@ export default function ExercisesPage() {
                   className="w-full flex items-center gap-3 px-4 py-3 text-left"
                 >
                   {ex.imageUrl ? (
-                    <img
+                    <Image
                       src={ex.imageUrl}
                       alt={ex.name}
+                      width={44}
+                      height={44}
                       loading="lazy"
                       className="shrink-0 w-11 h-11 rounded-lg object-cover bg-panel"
                     />
@@ -137,12 +140,16 @@ function ExerciseDetail({ ex, lang }: { ex: ExerciseDef; lang: MuscleLabelLang }
       {(ex.imageUrl || ex.highlighterMuscles.length > 0) && (
         <div className="grid grid-cols-2 gap-3">
           {ex.imageUrl && (
-            <img
-              src={ex.imageUrl}
-              alt={ex.name}
-              loading="lazy"
-              className="w-full aspect-square object-cover rounded-xl bg-panel"
-            />
+            <div className="relative w-full aspect-square rounded-xl bg-panel overflow-hidden">
+              <Image
+                src={ex.imageUrl}
+                alt={ex.name}
+                fill
+                sizes="(max-width: 768px) 50vw, 300px"
+                loading="lazy"
+                className="object-cover"
+              />
+            </div>
           )}
           {ex.highlighterMuscles.length > 0 && (
             <div className="rounded-xl bg-panel flex items-center justify-center py-2">
