@@ -139,13 +139,34 @@ export default function SessionPage() {
     setStates((prev) => ({ ...prev, [current.id]: { ...prev[current.id], ...patch } }))
   }
 
-  async function logCurrentExercise() {
+  // กด "เซ็ตนี้เสร็จแล้ว" — จำ reps/น้ำหนักที่กรอกอยู่ ณ ตอนนี้เป็นเซ็ตจริงเซ็ตหนึ่ง (ไม่ใช่แค่นับจำนวน)
+  // ทำให้ drop set หรือเซ็ตท้ายๆ ที่ reps ตกลง ถูกเก็บค่าจริงแยกทีละเซ็ต ไม่ถูกปัดเป็นค่าเดียวซ้ำทุกเซ็ต
+  function logSet() {
     if (!current || !currentState) return
-    if (currentState.setsDone > 0 && !currentState.reps) {
-      // ป้องกันบันทึก volume เพี้ยนเป็น 0 ทั้งที่ทำเซ็ตจริงไปแล้ว — ต้องกรอก reps ก่อนเสมอ
-      setErrorMsg('กรุณาใส่จำนวน reps ที่ทำได้ก่อนบันทึก')
+    if (!currentState.reps || currentState.reps <= 0) {
+      setErrorMsg('กรุณาใส่จำนวน reps ที่ทำได้ก่อนกดเซ็ตเสร็จ')
       return
     }
+    setErrorMsg(null)
+    updateCurrent({
+      setsLog: [...currentState.setsLog, { reps: currentState.reps, weightKg: currentState.weightKg ?? 0 }],
+    })
+  }
+
+  // "ลบเซ็ตล่าสุด" — เอาเซ็ตท้ายสุดออก แล้วดึงค่า reps/น้ำหนักของเซ็ตนั้นกลับมาเป็น draft
+  // ให้แก้ไขแล้วกดเสร็จใหม่ได้ทันที แทนที่จะแค่ลดตัวนับ
+  function removeLastSet() {
+    if (!current || !currentState || currentState.setsLog.length === 0) return
+    const popped = currentState.setsLog[currentState.setsLog.length - 1]
+    updateCurrent({
+      setsLog: currentState.setsLog.slice(0, -1),
+      reps: popped.reps,
+      weightKg: popped.weightKg,
+    })
+  }
+
+  async function logCurrentExercise() {
+    if (!current || !currentState) return
     setSaving(true)
     setErrorMsg(null)
     try {
@@ -157,20 +178,25 @@ export default function SessionPage() {
         return
       }
 
-      if (currentState.setsDone > 0) {
-        // total_volume_kg: โมเดลข้อมูลของ session flow นี้เก็บ reps/weight เป็นค่าเดียวต่อท่า
-        // (ไม่ใช่ทีละเซ็ตแบบหน้า /log) ดังนั้น sets*reps*weight คือ volume ที่แม่นยำที่สุดเท่าที่มีอยู่แล้ว
-        // — บันทึกลง total_volume_kg ไปด้วย กันหน้าสถิติต้องเดา/fallback ทีหลัง
-        const totalVolumeKg = currentState.setsDone * (currentState.reps ?? 0) * (currentState.weightKg ?? 0)
+      if (currentState.setsLog.length > 0) {
+        // top set = เซ็ตที่หนักที่สุด (ถ้าเท่ากันเทียบ reps) — เก็บลง workouts.reps/weight_kg
+        // เพื่อให้ยังใช้เป็นค่าเดี่ยวสำหรับ PR / ประมาณ 1RM ได้เหมือนหน้า /log
+        const topSet = currentState.setsLog.reduce((best, s) => {
+          if (s.weightKg > best.weightKg) return s
+          if (s.weightKg === best.weightKg && s.reps > best.reps) return s
+          return best
+        }, currentState.setsLog[0])
+        // total_volume_kg: รวมจาก reps x น้ำหนัก จริงทีละเซ็ต (ไม่ใช่ setsDone * ค่าเดียวเหมือนเดิม)
+        const totalVolumeKg = currentState.setsLog.reduce((sum, s) => sum + s.reps * s.weightKg, 0)
         const payload = {
           user_id: user.id,
           type: 'strength' as const,
           performed_at: todayStr(),
           exercise_name: current.exercise_name,
           muscle_group: current.muscle_group,
-          sets: currentState.setsDone,
-          reps: currentState.reps,
-          weight_kg: currentState.weightKg,
+          sets: currentState.setsLog.length,
+          reps: topSet.reps,
+          weight_kg: topSet.weightKg,
           rpe: currentState.rpe,
           notes: current.rationale,
           total_volume_kg: totalVolumeKg,
@@ -187,6 +213,29 @@ export default function SessionPage() {
           return
         }
 
+        const workoutId = (upserted as { id: string } | null)?.id ?? currentState.workoutId
+
+        if (workoutId) {
+          // แก้ไขซ้ำ (กดย้อนมาแก้ผ่าน progress chips) — ลบเซ็ตเก่าทั้งหมดแล้วเขียนชุดใหม่ทับ
+          // ง่ายกว่า diff ทีละเซ็ต และจำนวน/ลำดับเซ็ตอาจเปลี่ยนไปจากเดิม
+          if (currentState.workoutId) {
+            await supabase.from('workout_sets').delete().eq('workout_id', workoutId)
+          }
+          const setsPayload = currentState.setsLog.map((s, i) => ({
+            workout_id: workoutId,
+            user_id: user.id,
+            set_number: i + 1,
+            reps: s.reps,
+            weight_kg: s.weightKg,
+            completed: true,
+          }))
+          const { error: setsError } = await supabase.from('workout_sets').insert(setsPayload)
+          if (setsError) {
+            // แถวสรุป (workouts) บันทึกสำเร็จแล้ว แค่รายละเอียดทีละเซ็ตไม่ครบ — ตัวเลขรวมยังถูกต้อง
+            setErrorMsg('บันทึกสำเร็จ แต่รายละเอียดทีละเซ็ตบันทึกไม่ครบ')
+          }
+        }
+
         await supabase
           .from('program_completions')
           .upsert(
@@ -194,7 +243,7 @@ export default function SessionPage() {
             { onConflict: 'user_id,program_exercise_id,completed_at' }
           )
 
-        updateCurrent({ logged: true, workoutId: (upserted as { id: string } | null)?.id ?? currentState.workoutId })
+        updateCurrent({ logged: true, workoutId })
       }
 
       goNext()
@@ -273,7 +322,7 @@ export default function SessionPage() {
         .sort((a, b) => b.deltaKg - a.deltaKg)
 
       const trainedToday = aggregateMuscleLoads(
-        loggedList.map((e) => ({ muscleGroup: e.ex.muscle_group, sets: e.state.setsDone, rpe: e.state.rpe }))
+        loggedList.map((e) => ({ muscleGroup: e.ex.muscle_group, sets: e.state.setsLog.length, rpe: e.state.rpe }))
       )
       const priorLastTrainedDate: Record<string, string | null> = {}
       const muscleRows = (recentMuscleRows as { muscle_group: string | null; performed_at: string }[]) ?? []
@@ -303,7 +352,7 @@ export default function SessionPage() {
     const summary = computeSessionSummary(
       Object.values(states)
         .filter((s) => s.logged)
-        .map((s) => ({ setsDone: s.setsDone, reps: s.reps, weightKg: s.weightKg }))
+        .map((s) => ({ setsLog: s.setsLog }))
     )
     const skipped = getSkippedExercises(exercises, states)
     const lines = [
@@ -356,7 +405,7 @@ export default function SessionPage() {
 
   if (phase === 'done') {
     const summary = computeSessionSummary(
-      Object.values(states).filter((s) => s.logged).map((s) => ({ setsDone: s.setsDone, reps: s.reps, weightKg: s.weightKg }))
+      Object.values(states).filter((s) => s.logged).map((s) => ({ setsLog: s.setsLog }))
     )
     const skipped = getSkippedExercises(exercises, states)
     return (
@@ -463,7 +512,7 @@ export default function SessionPage() {
 
   const mg = (current.muscle_group as MuscleGroup) ?? null
   const mgColor = mg ? MUSCLE_GROUP_COLORS[mg] : undefined
-  const setsRemaining = Math.max(0, targetSets - currentState.setsDone)
+  const setsRemaining = Math.max(0, targetSets - currentState.setsLog.length)
 
   return (
     <div className="space-y-4 lg:max-w-2xl lg:mx-auto">
@@ -520,16 +569,32 @@ export default function SessionPage() {
             <div>
               <p className="text-[10px] tracked uppercase text-muted">เซ็ตที่ทำแล้ว</p>
               <p className="font-mono text-2xl text-ink mt-0.5">
-                {currentState.setsDone}
+                {currentState.setsLog.length}
                 <span className="text-sm text-muted">/{targetSets}</span>
               </p>
             </div>
             <RestTimerButton
               key={current.id}
               restSeconds={parseRestSeconds(current.rest)}
-              onSetLogged={currentState.setsDone}
+              onSetLogged={currentState.setsLog.length}
             />
           </div>
+
+          {currentState.setsLog.length > 0 && (
+            <ul className="space-y-1">
+              {currentState.setsLog.map((s, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between text-[11px] font-mono text-muted bg-surface2 rounded px-2.5 py-1"
+                >
+                  <span>เซ็ต {i + 1}</span>
+                  <span className="text-ink">
+                    {format(toDisplay(s.weightKg))} {unit} × {s.reps} reps
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className="grid grid-cols-2 gap-2.5">
             <NumberStepper
@@ -551,16 +616,16 @@ export default function SessionPage() {
 
           <button
             type="button"
-            onClick={() => updateCurrent({ setsDone: currentState.setsDone + 1 })}
+            onClick={logSet}
             className="w-full rounded-lg bg-steel text-bg font-display tracked uppercase py-3.5 text-sm active:scale-[0.98] transition"
           >
             ✅ เซ็ตนี้เสร็จแล้ว{setsRemaining > 0 ? ` (เหลืออีก ${setsRemaining})` : ''}
           </button>
 
-          {currentState.setsDone > 0 && (
+          {currentState.setsLog.length > 0 && (
             <button
               type="button"
-              onClick={() => updateCurrent({ setsDone: Math.max(0, currentState.setsDone - 1) })}
+              onClick={removeLastSet}
               className="w-full text-[11px] text-muted hover:text-amber transition"
             >
               แก้ไข — ลบเซ็ตล่าสุด
@@ -583,7 +648,7 @@ export default function SessionPage() {
         <button
           type="button"
           onClick={logCurrentExercise}
-          disabled={saving || currentState.setsDone === 0 || !currentState.reps}
+          disabled={saving || currentState.setsLog.length === 0}
           className="flex-[2] rounded-lg bg-amber text-bg font-display tracked uppercase py-3 text-xs disabled:opacity-40 active:scale-[0.99] transition"
         >
           {saving
