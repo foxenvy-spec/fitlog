@@ -117,7 +117,7 @@ export default function WorkoutHeatmap() {
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-2">
+      <div className="px-4 pb-4 pt-2 max-w-md mx-auto">
         <div className="grid grid-cols-7 gap-1.5 mb-1.5">
           {WEEKDAY_LABELS.map((w) => (
             <span key={w} className="text-center text-[9px] tracked uppercase text-muted">
