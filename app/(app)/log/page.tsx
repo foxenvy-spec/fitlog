@@ -17,6 +17,7 @@ import ImportCardioPhoto from '@/components/ImportCardioPhotoGemini'
 import MuscleDiagram from '@/components/MuscleDiagram'
 import { computePaceSpeed, formatPace } from '@/lib/cardioPace'
 import { classifyHRZone, HR_ZONES, DEFAULT_MAX_HEART_RATE } from '@/lib/heartRate'
+import { cadenceUnitFor, cadenceUnitLabel, cadenceFieldLabel } from '@/lib/cadence'
 
 const CARDIO_PRESETS = ['วิ่ง', 'ปั่นจักรยาน', 'ว่ายน้ำ', 'เดินเร็ว', 'กระโดดเชือก']
 
@@ -78,6 +79,7 @@ function LogPageInner() {
   const [duration, setDuration] = useState('')
   const [avgHeartRate, setAvgHeartRate] = useState('')
   const [caloriesKcal, setCaloriesKcal] = useState('')
+  const [cadence, setCadence] = useState('')
 
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>([])
   const [exerciseLibraryId, setExerciseLibraryId] = useState<string | null>(null)
@@ -226,12 +228,14 @@ function LogPageInner() {
       setDuration('')
       setAvgHeartRate('')
       setCaloriesKcal('')
+      setCadence('')
     } else {
       setCardioType(w.cardio_type ?? '')
       setDistance(w.distance_km !== null ? String(w.distance_km) : '')
       setDuration(w.duration_min !== null ? String(w.duration_min) : '')
       setAvgHeartRate(w.avg_heart_rate !== null && w.avg_heart_rate !== undefined ? String(w.avg_heart_rate) : '')
       setCaloriesKcal(w.calories_kcal !== null && w.calories_kcal !== undefined ? String(w.calories_kcal) : '')
+      setCadence(w.cadence !== null && w.cadence !== undefined ? String(w.cadence) : '')
       setExerciseName('')
       setMuscleGroup('')
       setSecondaryMuscles([])
@@ -263,6 +267,7 @@ function LogPageInner() {
     setDuration('')
     setAvgHeartRate('')
     setCaloriesKcal('')
+    setCadence('')
     setNotes('')
   }
 
@@ -393,6 +398,7 @@ function LogPageInner() {
       duration_min: duration ? Number(duration) : null,
       avg_heart_rate: avgHeartRate ? Math.round(Number(avgHeartRate)) : null,
       calories_kcal: caloriesKcal ? Number(caloriesKcal) : null,
+      cadence: cadence ? Number(cadence) : null,
       notes: notes || null,
     }
 
@@ -458,6 +464,7 @@ function LogPageInner() {
       setDuration(last.duration_min !== null ? String(last.duration_min) : '')
       setAvgHeartRate(last.avg_heart_rate !== null && last.avg_heart_rate !== undefined ? String(last.avg_heart_rate) : '')
       setCaloriesKcal(last.calories_kcal !== null && last.calories_kcal !== undefined ? String(last.calories_kcal) : '')
+      setCadence(last.cadence !== null && last.cadence !== undefined ? String(last.cadence) : '')
     }
   }
 
@@ -656,6 +663,7 @@ function LogPageInner() {
                 if (result.duration_min !== null) setDuration(String(result.duration_min))
                 if (result.avg_heart_rate !== null) setAvgHeartRate(String(result.avg_heart_rate))
                 if (result.calories_kcal !== null) setCaloriesKcal(String(result.calories_kcal))
+                if (result.cadence !== null) setCadence(String(result.cadence))
               }}
             />
             <Field label="ประเภทคาร์ดิโอ">
@@ -718,6 +726,17 @@ function LogPageInner() {
                   onChange={(e) => setCaloriesKcal(e.target.value)}
                   className="input font-mono text-center"
                   placeholder="ถ้าไม่กรอกจะประมาณให้เอง"
+                />
+              </Field>
+              <Field label={`${cadenceFieldLabel(cardioType)} — ไม่บังคับ`}>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="1"
+                  value={cadence}
+                  onChange={(e) => setCadence(e.target.value)}
+                  className="input font-mono text-center"
                 />
               </Field>
             </div>
@@ -822,6 +841,13 @@ function LogPageInner() {
                       </span>
                       {w.avg_heart_rate !== null && w.avg_heart_rate !== undefined && (
                         <span className="text-muted text-xs"> · {w.avg_heart_rate}bpm</span>
+                      )}
+                      {w.cadence !== null && w.cadence !== undefined && (
+                        <span className="text-muted text-xs">
+                          {' '}
+                          · {w.cadence}
+                          {cadenceUnitLabel(cadenceUnitFor(w.cardio_type))}
+                        </span>
                       )}
                     </p>
                   )}

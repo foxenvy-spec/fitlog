@@ -20,6 +20,7 @@ const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models
 const EXTRACTION_SYSTEM_PROMPT = `คุณช่วยอ่านตัวเลขจากรูปหน้าจอของอุปกรณ์ออกกำลังกาย (ลู่วิ่ง, นาฬิกาสมาร์ทวอทช์, แอปเช่น Strava/Garmin/Apple Health)
 อ่านค่าที่เห็นในรูปแล้วตอบตาม schema ที่กำหนด ใช้ null สำหรับค่าที่หาไม่เจอหรือไม่มั่นใจ
 cardio_type ให้แปลเป็นภาษาไทย (เช่น "วิ่ง", "ปั่นจักรยาน", "ว่ายน้ำ", "เดินเร็ว")
+cadence คืออัตราก้าว/นาที (วิ่ง/เดิน) หรือรอบขา/นาที (ปั่นจักรยาน) — บางอุปกรณ์เรียกว่า "cadence" หรือ "steps/min" หรือ "rpm"
 ถ้ารูปไม่ใช่หน้าจออุปกรณ์ออกกำลังกาย หรืออ่านตัวเลขอะไรไม่ได้เลย ให้ตอบ null ทุกฟิลด์`
 
 // responseSchema บังคับให้ Gemini ตอบ JSON ตรงตามโครงสร้างนี้เสมอ (structured output)
@@ -32,8 +33,9 @@ const RESPONSE_SCHEMA = {
     duration_min: { type: 'NUMBER', nullable: true },
     avg_heart_rate: { type: 'NUMBER', nullable: true },
     calories_kcal: { type: 'NUMBER', nullable: true },
+    cadence: { type: 'NUMBER', nullable: true },
   },
-  required: ['cardio_type', 'distance_km', 'duration_min', 'avg_heart_rate', 'calories_kcal'],
+  required: ['cardio_type', 'distance_km', 'duration_min', 'avg_heart_rate', 'calories_kcal', 'cadence'],
 }
 
 interface ExtractedCardioData {
@@ -42,6 +44,7 @@ interface ExtractedCardioData {
   duration_min: number | null
   avg_heart_rate: number | null
   calories_kcal: number | null
+  cadence: number | null
 }
 
 function coerceNumber(v: unknown): number | null {
@@ -58,6 +61,7 @@ function coerceResult(raw: unknown): ExtractedCardioData {
     duration_min: coerceNumber(obj.duration_min),
     avg_heart_rate: coerceNumber(obj.avg_heart_rate),
     calories_kcal: coerceNumber(obj.calories_kcal),
+    cadence: coerceNumber(obj.cadence),
   }
 }
 
