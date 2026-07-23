@@ -798,23 +798,29 @@ function LogPageInner() {
           <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
             {today.map((w) => (
               <li key={w.id} className="tally-row flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-ink text-sm">
-                    {w.type === 'strength' ? (
-                      <>
-                        <span className="text-steel font-display tracked uppercase text-xs mr-2">STR</span>
-                        {w.exercise_name} — {w.sets}×{w.reps} @ {format(w.weight_kg)}
-                        {w.rpe !== null && <span className="text-muted"> · RPE {w.rpe}</span>}
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-rusttext font-display tracked uppercase text-xs mr-2">CAR</span>
-                        {w.cardio_type} — {w.distance_km}km / {w.duration_min}min
-                        {w.avg_heart_rate !== null && w.avg_heart_rate !== undefined && ` · ${w.avg_heart_rate}bpm`}
-                      </>
-                    )}
-                  </p>
-                  {w.notes && <p className="text-xs text-muted mt-0.5">{w.notes}</p>}
+                <div className="min-w-0">
+                  {w.type === 'strength' ? (
+                    <p className="text-ink leading-snug">
+                      <span className="mr-1.5" aria-label="Strength">🏋️</span>
+                      <span className="text-[15px] font-medium">{w.exercise_name}</span>
+                      <span className="font-mono font-bold ml-1.5">
+                        {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                      </span>
+                      {w.rpe !== null && <span className="text-muted text-xs"> · RPE {w.rpe}</span>}
+                    </p>
+                  ) : (
+                    <p className="text-ink leading-snug">
+                      <span className="mr-1.5" aria-label="Cardio">🏃</span>
+                      <span className="text-[15px] font-medium">{w.cardio_type}</span>
+                      <span className="font-mono font-bold ml-1.5">
+                        {w.distance_km}km / {w.duration_min}min
+                      </span>
+                      {w.avg_heart_rate !== null && w.avg_heart_rate !== undefined && (
+                        <span className="text-muted text-xs"> · {w.avg_heart_rate}bpm</span>
+                      )}
+                    </p>
+                  )}
+                  {w.notes && <p className="text-[11px] text-muted mt-0.5 truncate">{w.notes}</p>}
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-3">
                   <button
