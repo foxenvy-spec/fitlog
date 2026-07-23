@@ -679,13 +679,28 @@ export default function DashboardPage() {
       )}
       </div>
 
-      {/* full width (lg+): below-the-fold charts, insights, quick actions */}
+      {/* full width (lg+): below-the-fold charts, insights, quick actions
+          Order follows a "what happened -> am I on track -> what's next" reading flow:
+          heatmap (what got trained) -> volume (on track vs target) -> AI insights
+          (what to do about it) -> consistency calendar (recent workouts / PRs per day)
+          -> next-up + quick actions last. */}
       <div className="lg:col-span-2 space-y-6">
+      <WeeklyMuscleHeatmap />
+      <WeeklyVolume />
+
+      {data.insights.length > 0 && (
+        <div className="space-y-2">
+          {data.insights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
+          ))}
+        </div>
+      )}
+
       <WorkoutHeatmap />
 
-      {/* Next up in program — below the heatmap so the hero cards above stay focused
-          on "what do I do now" (workout, recovery, goal). PR history/suggestions now
-          live on the Statistics page alongside the rest of the analytics. */}
+      {/* Next up in program — kept near the end so the top-to-bottom flow reads as
+          "what happened this week" before "what's coming up next". PR history lives
+          on the Statistics page alongside the rest of the analytics. */}
       {next && (
         <div className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -699,16 +714,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {data.insights.length > 0 && (
-        <div className="space-y-2">
-          {data.insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} />
-          ))}
-        </div>
-      )}
-
-      <WeeklyMuscleHeatmap />
-      <WeeklyVolume />
       <WeeklyCardioVolume />
 
       {/* quick actions */}
