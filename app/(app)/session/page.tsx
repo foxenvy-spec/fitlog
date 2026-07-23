@@ -9,6 +9,7 @@ import {
   parseRestSeconds,
   initSessionStates,
   firstUnfinishedIndex,
+  nextUnvisitedIndex,
   computeSessionSummary,
   aggregateMuscleLoads,
   getSkippedExercises,
@@ -268,7 +269,15 @@ export default function SessionPage() {
             { onConflict: 'user_id,program_exercise_id,completed_at' }
           )
 
-        updateCurrent({ logged: true, workoutId })
+        // ใช้ states ที่เพิ่งอัปเดตนี้ (ไม่ใช่ตัวแปร states เดิมจาก closure ที่ยังไม่ทันอัปเดต)
+        // ไปคำนวณท่าถัดไปทันที กัน goNext เห็นค่า logged เก่าที่ยังเป็น false อยู่
+        const merged = {
+          ...states,
+          [current.id]: { ...currentState, logged: true, workoutId },
+        }
+        setStates(merged)
+        goNext(merged)
+        return
       }
 
       goNext()
@@ -279,16 +288,25 @@ export default function SessionPage() {
     }
   }
 
+  // กด "ข้ามท่านี้" — ทำเครื่องหมายว่าท่านี้ถูกดูรอบนี้แล้ว (skipped) แยกจาก logged=false เฉยๆ
+  // ที่แปลว่า "ยังไม่ถึงคิว" เพื่อไม่ให้ nextUnvisitedIndex วนกลับมาที่ท่านี้ซ้ำ
   function skipCurrent() {
-    goNext()
+    if (!current) return
+    const merged = { ...states, [current.id]: { ...states[current.id], skipped: true } }
+    setStates(merged)
+    goNext(merged)
   }
 
-  function goNext() {
-    if (index >= exercises.length - 1) {
+  // หาท่าถัดไปที่ยังไม่ถูกบันทึก/ข้าม โดยวนรอบทั้ง array (ไม่ใช่แค่ +1 ตามตำแหน่งเดิม)
+  // เพราะผู้ใช้อาจกด progress chips ข้ามไปทำท่าท้ายๆ ก่อน — ตำแหน่งใน array จึงไม่ได้แปลว่า
+  // เป็นท่าสุดท้ายที่เหลือจริงๆ เซสชันจะจบก็ต่อเมื่อทุกท่าถูกบันทึกหรือข้ามไปหมดแล้วเท่านั้น
+  function goNext(latestStates: Record<string, SessionSetState> = states) {
+    const next = nextUnvisitedIndex(exercises, latestStates, index)
+    if (next === null) {
       session.pause()
       setPhase('done')
     } else {
-      setIndex((i) => i + 1)
+      setIndex(next)
     }
   }
 
