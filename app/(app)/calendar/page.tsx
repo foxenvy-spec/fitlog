@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { BodyMetric, Goal, GoalStatus, GoalType, Workout } from '@/lib/types'
+import type { BodyMetric, Goal, GoalStatus, GoalType, Workout, WorkoutSet } from '@/lib/types'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
 import type { WeightUnit } from '@/lib/weightUnit'
 import { computeDaySummary, computeExerciseProgress, formatDuration } from '@/lib/workoutDisplay'
-import ExerciseProgressBadge from '@/components/ExerciseProgressBadge'
+import ExerciseCard, { buildDisplaySets } from '@/components/ExerciseCard'
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
 
@@ -38,6 +38,8 @@ export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => new Date())
   const [monthWorkouts, setMonthWorkouts] = useState<Workout[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [daySets, setDaySets] = useState<Record<string, WorkoutSet[]>>({})
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -88,15 +90,20 @@ export default function CalendarPage() {
   }, [loadGoalsData])
 
   const dayMap = useMemo(() => {
-    const map = new Map<string, { strength: boolean; cardio: boolean }>()
+    const map = new Map<string, { strength: boolean; cardio: boolean; pr: boolean }>()
     monthWorkouts.forEach((w) => {
-      const cur = map.get(w.performed_at) ?? { strength: false, cardio: false }
-      if (w.type === 'strength') cur.strength = true
-      else cur.cardio = true
+      const cur = map.get(w.performed_at) ?? { strength: false, cardio: false, pr: false }
+      if (w.type === 'strength') {
+        cur.strength = true
+        const progress = computeExerciseProgress(w, allWorkouts)
+        if (progress.kind === 'pr' || progress.kind === 'bestVolume') cur.pr = true
+      } else {
+        cur.cardio = true
+      }
       map.set(w.performed_at, cur)
     })
     return map
-  }, [monthWorkouts])
+  }, [monthWorkouts, allWorkouts])
 
   const streak = useMemo(() => {
     const days = new Set(allWorkouts.map((w) => w.performed_at))
@@ -123,6 +130,46 @@ export default function CalendarPage() {
   }, [monthStart, monthEnd, cursor])
 
   const selectedWorkouts = selectedDate ? monthWorkouts.filter((w) => w.performed_at === selectedDate) : []
+
+  useEffect(() => {
+    setExpandedIds(new Set())
+    if (!selectedDate) return
+    const strengthIds = monthWorkouts
+      .filter((w) => w.performed_at === selectedDate && w.type === 'strength')
+      .map((w) => w.id)
+    if (strengthIds.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.from('workout_sets').select('*').in('workout_id', strengthIds).order('set_number')
+      if (cancelled) return
+      const byId: Record<string, WorkoutSet[]> = {}
+      ;((data as WorkoutSet[]) ?? []).forEach((s) => {
+        ;(byId[s.workout_id] ??= []).push(s)
+      })
+      setDaySets(byId)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate])
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function expandAllDay() {
+    setExpandedIds(new Set(selectedWorkouts.filter((w) => w.type === 'strength').map((w) => w.id)))
+  }
+
+  function collapseAllDay() {
+    setExpandedIds(new Set())
+  }
 
   function goalProgress(goal: Goal): number | null {
     if (goal.target_value === null) return null
@@ -215,7 +262,7 @@ export default function CalendarPage() {
                     key={iso}
                     type="button"
                     onClick={() => setSelectedDate(isSelected ? null : iso)}
-                    className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 text-xs transition border ${
+                    className={`relative aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 text-xs transition border ${
                       isSelected
                         ? 'bg-amber text-bg border-amber'
                         : isToday
@@ -223,6 +270,11 @@ export default function CalendarPage() {
                           : 'border-transparent text-ink hover:bg-surface2'
                     }`}
                   >
+                    {marks?.pr && (
+                      <span className="absolute -top-1 -right-1 text-[10px] leading-none" aria-label="ทำสถิติใหม่วันนี้">
+                        ⭐
+                      </span>
+                    )}
                     <span className="font-mono">{d.getDate()}</span>
                     <span className="flex gap-0.5">
                       {marks?.strength && <span className="w-1 h-1 rounded-full bg-steel" />}
@@ -273,24 +325,30 @@ export default function CalendarPage() {
                 )
               })()}
 
-              <ul className="rounded-lg bg-surface border border-line shadow-elevated overflow-hidden">
+              {selectedWorkouts.filter((w) => w.type === 'strength').length > 1 && (
+                <div className="flex justify-end gap-3 mb-2">
+                  <button type="button" onClick={expandAllDay} className="text-[11px] tracked uppercase text-muted hover:text-amber transition">
+                    Expand All
+                  </button>
+                  <span className="text-line">|</span>
+                  <button type="button" onClick={collapseAllDay} className="text-[11px] tracked uppercase text-muted hover:text-amber transition">
+                    Collapse All
+                  </button>
+                </div>
+              )}
+
+              <ul className="space-y-2">
                 {selectedWorkouts.map((w) => (
-                  <li key={w.id} className="tally-row px-4 py-3 text-sm text-ink flex items-center justify-between gap-2">
-                    {w.type === 'strength' ? (
-                      <>
-                        <span className="min-w-0">
-                          <span className="text-steel mr-1.5">🏋️</span>
-                          {w.exercise_name} — {w.sets}×{w.reps} @ {format(w.weight_kg)}
-                        </span>
-                        <ExerciseProgressBadge progress={computeExerciseProgress(w, allWorkouts)} format={format} />
-                      </>
-                    ) : (
-                      <span>
-                        <span className="text-rusttext mr-1.5">🏃</span>
-                        {w.cardio_type} — {w.distance_km}km / {w.duration_min}min
-                      </span>
-                    )}
-                  </li>
+                  <ExerciseCard
+                    key={w.id}
+                    workout={w}
+                    displaySets={buildDisplaySets(w, daySets[w.id] ?? [])}
+                    progress={computeExerciseProgress(w, allWorkouts)}
+                    format={format}
+                    expanded={expandedIds.has(w.id)}
+                    onToggleExpand={() => toggleExpand(w.id)}
+                    nameHref={w.exercise_name ? `/exercises/${encodeURIComponent(w.exercise_name)}` : undefined}
+                  />
                 ))}
               </ul>
             </>
