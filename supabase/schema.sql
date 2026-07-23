@@ -110,6 +110,12 @@ create table if not exists public.body_metrics (
   skeletal_muscle_kg numeric,
   visceral_fat_grade numeric,
   bmr_kcal numeric,
+  weight_range_low numeric,
+  weight_range_high numeric,
+  skeletal_muscle_range_low numeric,
+  skeletal_muscle_range_high numeric,
+  fat_mass_range_low numeric,
+  fat_mass_range_high numeric,
   notes text,
   created_at timestamptz not null default now()
 );
@@ -137,6 +143,12 @@ alter table public.body_metrics add column if not exists body_fat_kg numeric;
 alter table public.body_metrics add column if not exists inorganic_salt_kg numeric;
 alter table public.body_metrics add column if not exists protein_kg numeric;
 alter table public.body_metrics add column if not exists skeletal_muscle_kg numeric;
+alter table public.body_metrics add column if not exists weight_range_low numeric;
+alter table public.body_metrics add column if not exists weight_range_high numeric;
+alter table public.body_metrics add column if not exists skeletal_muscle_range_low numeric;
+alter table public.body_metrics add column if not exists skeletal_muscle_range_high numeric;
+alter table public.body_metrics add column if not exists fat_mass_range_low numeric;
+alter table public.body_metrics add column if not exists fat_mass_range_high numeric;
 comment on column public.body_metrics.arm_cm is 'รอบต้นแขน (ซม.)';
 comment on column public.body_metrics.thigh_cm is 'รอบต้นขา (ซม.)';
 comment on column public.body_metrics.body_water_kg is 'น้ำในร่างกาย (กก.) — จากเครื่องชั่ง bioimpedance';
@@ -146,6 +158,12 @@ comment on column public.body_metrics.protein_kg is 'โปรตีนในร
 comment on column public.body_metrics.skeletal_muscle_kg is 'กล้ามเนื้อโครงร่าง (กก.) — จากเครื่องชั่ง bioimpedance (ต่างจาก muscle_kg ซึ่งเป็นกล้ามเนื้อรวม)';
 comment on column public.body_metrics.visceral_fat_grade is 'ระดับไขมันช่องท้อง (visceral fat grade) — จากเครื่องชั่ง bioimpedance';
 comment on column public.body_metrics.bmr_kcal is 'อัตราการเผาผลาญพื้นฐาน (BMR, kcal/วัน) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.weight_range_low is 'ขอบล่างช่วงน้ำหนักมาตรฐานเฉพาะบุคคล (กก.) — จากรายงานเครื่องชั่ง ใช้วาดกราฟ Muscle fat analysis';
+comment on column public.body_metrics.weight_range_high is 'ขอบบนช่วงน้ำหนักมาตรฐานเฉพาะบุคคล (กก.)';
+comment on column public.body_metrics.skeletal_muscle_range_low is 'ขอบล่างช่วงกล้ามเนื้อโครงร่างมาตรฐานเฉพาะบุคคล (กก.)';
+comment on column public.body_metrics.skeletal_muscle_range_high is 'ขอบบนช่วงกล้ามเนื้อโครงร่างมาตรฐานเฉพาะบุคคล (กก.)';
+comment on column public.body_metrics.fat_mass_range_low is 'ขอบล่างช่วงมวลไขมันมาตรฐานเฉพาะบุคคล (กก.)';
+comment on column public.body_metrics.fat_mass_range_high is 'ขอบบนช่วงมวลไขมันมาตรฐานเฉพาะบุคคล (กก.)';
 
 create index if not exists body_metrics_user_id_idx on public.body_metrics (user_id);
 create index if not exists body_metrics_measured_at_idx on public.body_metrics (measured_at desc);
