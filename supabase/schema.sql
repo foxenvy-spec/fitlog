@@ -103,6 +103,9 @@ create table if not exists public.body_metrics (
   hip_cm numeric,
   arm_cm numeric,
   thigh_cm numeric,
+  body_water_pct numeric,
+  visceral_fat_grade numeric,
+  bmr_kcal numeric,
   notes text,
   created_at timestamptz not null default now()
 );
@@ -110,8 +113,14 @@ create table if not exists public.body_metrics (
 -- migrate existing installs that already have the table without these columns
 alter table public.body_metrics add column if not exists arm_cm numeric;
 alter table public.body_metrics add column if not exists thigh_cm numeric;
+alter table public.body_metrics add column if not exists body_water_pct numeric;
+alter table public.body_metrics add column if not exists visceral_fat_grade numeric;
+alter table public.body_metrics add column if not exists bmr_kcal numeric;
 comment on column public.body_metrics.arm_cm is 'รอบต้นแขน (ซม.)';
 comment on column public.body_metrics.thigh_cm is 'รอบต้นขา (ซม.)';
+comment on column public.body_metrics.body_water_pct is 'สัดส่วนน้ำในร่างกาย (%) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.visceral_fat_grade is 'ระดับไขมันช่องท้อง (visceral fat grade) — จากเครื่องชั่ง bioimpedance';
+comment on column public.body_metrics.bmr_kcal is 'อัตราการเผาผลาญพื้นฐาน (BMR, kcal/วัน) — จากเครื่องชั่ง bioimpedance';
 
 create index if not exists body_metrics_user_id_idx on public.body_metrics (user_id);
 create index if not exists body_metrics_measured_at_idx on public.body_metrics (measured_at desc);
