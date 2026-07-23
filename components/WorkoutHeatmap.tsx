@@ -420,18 +420,20 @@ export default function WorkoutHeatmap() {
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-[9px] text-muted">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted flex-wrap">
               <span>🏆 PR</span>
               <span>❤️ น้ำหนักตัว</span>
               <span>📏 วัดรอบตัว</span>
               <span>🏃 Cardio</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-muted">{HEATMAP_METRIC_LABEL[metric]} น้อย</span>
+              <span className="text-[10px] text-muted">
+                สี = <span className="text-ink">{HEATMAP_METRIC_LABEL[metric]}</span> · น้อย
+              </span>
               {[0, 1, 2, 3].map((lv) => (
-                <span key={lv} className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: LEVEL_STYLE[lv].bg }} />
+                <span key={lv} className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: LEVEL_STYLE[lv].bg }} />
               ))}
-              <span className="text-[9px] text-muted">มาก</span>
+              <span className="text-[10px] text-muted">มาก</span>
             </div>
           </div>
         </div>
@@ -565,10 +567,10 @@ export default function WorkoutHeatmap() {
                           <div className="flex items-start justify-between gap-2">
                             <span className="min-w-0">
                               <span className="mr-1.5">🏋️</span>
-                              <span className="text-ink">{w.exercise_name ?? '—'}</span>
-                              <span className="text-muted">
+                              <span className="text-ink text-[13px] font-medium">{w.exercise_name ?? '—'}</span>
+                              <span className="font-mono font-bold text-ink">
                                 {' '}
-                                — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                                {w.sets}×{w.reps} @ {format(w.weight_kg)}
                               </span>
                               {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
                               {w.muscle_group && <p className="text-[10px] text-steel mt-0.5">{w.muscle_group}</p>}
@@ -578,14 +580,14 @@ export default function WorkoutHeatmap() {
                         ) : (
                           <>
                             <span className="mr-1.5">🏃</span>
-                            <span className="text-ink">{w.cardio_type}</span>
-                            <span className="text-muted">
+                            <span className="text-ink text-[13px] font-medium">{w.cardio_type}</span>
+                            <span className="font-mono font-bold text-ink">
                               {' '}
-                              — {w.distance_km}km / {w.duration_min}min
+                              {w.distance_km}km / {w.duration_min}min
                             </span>
                           </>
                         )}
-                        {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
+                        {w.notes && <p className="text-[10px] text-muted/80 mt-0.5 truncate">{w.notes}</p>}
                       </button>
 
                       {expanded && (

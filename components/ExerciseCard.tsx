@@ -78,7 +78,7 @@ export default function ExerciseCard({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink truncate leading-snug">
+            <p className="text-base font-medium text-ink truncate leading-snug">
               <span className="mr-1.5">{w.type === 'strength' ? '🏋️' : '🏃'}</span>
               {nameHref ? (
                 <a href={nameHref} onClick={(e) => e.stopPropagation()} className="hover:text-amber hover:underline">
@@ -104,7 +104,7 @@ export default function ExerciseCard({
               )}
             </div>
             {w.muscle_group && <p className="text-[11px] text-steel mt-1">{w.muscle_group}</p>}
-            {w.notes && <p className="text-xs text-muted mt-1 truncate">{w.notes}</p>}
+            {w.notes && <p className="text-[11px] text-muted/80 mt-1 truncate">{w.notes}</p>}
           </div>
           <div className="flex items-center gap-2 shrink-0 mt-0.5">
             <ExerciseProgressBadge progress={progress} format={format} />
