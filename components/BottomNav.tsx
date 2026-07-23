@@ -14,8 +14,8 @@ export default function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 bg-surface/95 backdrop-blur border-t border-line safe-bottom">
-      <div className="max-w-sm mx-auto grid grid-cols-4">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-surface/95 backdrop-blur border-t border-line safe-bottom">
+      <div className="max-w-sm md:max-w-2xl mx-auto grid grid-cols-4">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           return (
