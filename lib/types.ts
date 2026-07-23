@@ -71,6 +71,12 @@ export interface BodyMetric {
   skeletal_muscle_kg: number | null
   visceral_fat_grade: number | null
   bmr_kcal: number | null
+  weight_range_low: number | null
+  weight_range_high: number | null
+  skeletal_muscle_range_low: number | null
+  skeletal_muscle_range_high: number | null
+  fat_mass_range_low: number | null
+  fat_mass_range_high: number | null
   notes: string | null
   created_at: string
 }
