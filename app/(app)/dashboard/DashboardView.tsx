@@ -354,9 +354,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    // < 1024px: flat vertical stack, unchanged from before.
+    // >= 1024px: two-column dashboard — greeting spans both, "today" (hero/quick-start/
+    // heatmap) sits left, "status" (recovery/goal/AI coach) sits right, and the
+    // below-the-fold charts + insights span both columns again underneath.
+    <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
       {/* greeting + settings */}
-      <div className="flex items-start justify-between gap-3 px-1 animate-rise" style={{ animationDelay: '0ms' }}>
+      <div className="lg:col-span-2 flex items-start justify-between gap-3 px-1 animate-rise" style={{ animationDelay: '0ms' }}>
         <div>
           <p className="text-xs text-muted">👋 {greetingText}</p>
           <p className="font-display text-lg tracked uppercase text-ink mt-0.5">
@@ -377,6 +381,8 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* left column (lg+): today's workout, quick start, muscle heatmap */}
+      <div className="space-y-6">
       {/* card 1: today's workout — the ONE dominant focal card on this screen.
           everything else below is intentionally quieter (no shadow-hero, smaller type)
           so the eye has exactly one obvious place to land first. */}
@@ -479,7 +485,10 @@ export default function DashboardPage() {
       <div className="animate-rise" style={{ animationDelay: '180ms' }}>
         <TodayMuscleHeatmap todayWorkouts={data.todayWorkouts} />
       </div>
+      </div>
 
+      {/* right column (lg+): recovery, weekly goal, AI coach */}
+      <div className="space-y-6">
       {/* card 2: recovery — secondary weight on purpose: quieter border, no shadow, tighter
           padding than the hero card above, so it reads as supporting info, not competing for focus */}
       {prefs.showRecovery && (
@@ -588,7 +597,10 @@ export default function DashboardPage() {
           </a>
         </div>
       )}
+      </div>
 
+      {/* full width (lg+): below-the-fold charts, insights, quick actions */}
+      <div className="lg:col-span-2 space-y-6">
       <WorkoutHeatmap />
 
       {/* Next up in program — below the heatmap so the hero cards above stay focused
@@ -623,6 +635,7 @@ export default function DashboardPage() {
         <QuickAction href="/log" label="บันทึก" icon="✚" accent="moss" />
         <QuickAction href="/templates" label="เทมเพลต" icon="📋" accent="steel" />
         <QuickAction href="/stats" label="สถิติ" icon="📈" accent="steel" />
+      </div>
       </div>
 
       {settingsOpen && (
