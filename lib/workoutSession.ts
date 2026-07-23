@@ -54,6 +54,78 @@ export function initSessionSet(ex: ProgramExercise): SessionSetState {
   }
 }
 
+export interface LoggedWorkoutRow {
+  id: string
+  exercise_name: string
+  rpe: number | null
+}
+
+export interface LoggedSetRow {
+  workout_id: string
+  set_number: number
+  reps: number
+  weight_kg: number
+}
+
+// สร้าง state เริ่มต้นของ "ทุกท่า" ในเซสชัน โดยดึงท่าที่บันทึกไปแล้ว "วันนี้" กลับมาด้วย
+// (เดิมหน้า session เรียก initSessionSet เปล่าๆ ทุกครั้งที่โหลดหน้า ทำให้ถ้าปิดแอพ/รีเฟรช
+// หลังบันทึกบางท่าไปแล้ว ระบบลืมว่าทำไปแล้ว ต้องมานับ/กดใหม่ตั้งแต่ต้น)
+// loggedWorkouts/loggedSets มาจากตาราง workouts + workout_sets ของ "วันนี้" เท่านั้น
+export function initSessionStates(
+  exercises: ProgramExercise[],
+  loggedWorkouts: LoggedWorkoutRow[],
+  loggedSets: LoggedSetRow[]
+): Record<string, SessionSetState> {
+  const setsByWorkout = new Map<string, LoggedSetRow[]>()
+  loggedSets.forEach((s) => {
+    const arr = setsByWorkout.get(s.workout_id) ?? []
+    arr.push(s)
+    setsByWorkout.set(s.workout_id, arr)
+  })
+
+  // เผื่อกรณีแผนวันนี้มีชื่อท่าซ้ำกัน (เช่น superset เล่นท่าเดิม 2 ช่วง) — จับคู่ตามลำดับที่เจอ
+  // ไม่ใช่ตามชื่อเฉยๆ เพื่อไม่ให้ท่าที่ซ้ำชื่อกันแย่งแถวเดียวกัน
+  const byName = new Map<string, LoggedWorkoutRow[]>()
+  loggedWorkouts.forEach((w) => {
+    const arr = byName.get(w.exercise_name) ?? []
+    arr.push(w)
+    byName.set(w.exercise_name, arr)
+  })
+
+  return Object.fromEntries(
+    exercises.map((ex) => {
+      const match = byName.get(ex.exercise_name)?.shift()
+      if (!match) return [ex.id, initSessionSet(ex)]
+
+      const sets = (setsByWorkout.get(match.id) ?? [])
+        .slice()
+        .sort((a, b) => a.set_number - b.set_number)
+        .map((s) => ({ reps: s.reps, weightKg: s.weight_kg }))
+      const last = sets[sets.length - 1] ?? null
+
+      const state: SessionSetState = {
+        setsLog: sets,
+        reps: last ? last.reps : parseRangeToNumber(ex.target_reps),
+        weightKg: last ? last.weightKg : ex.default_weight_kg,
+        rpe: match.rpe ?? rirToRpe(parseRangeToNumber(ex.target_rir)),
+        logged: true,
+        workoutId: match.id,
+      }
+      return [ex.id, state]
+    })
+  )
+}
+
+// หา index ท่าที่ควรเปิดขึ้นมาให้ตอนกลับเข้าเซสชัน — ท่าแรกที่ยังไม่ได้บันทึก
+// ถ้าทำครบทุกท่าแล้ว ให้ชี้ไปท่าสุดท้าย (กันกรณี exercises ว่างเปล่าด้วย)
+export function firstUnfinishedIndex(
+  exercises: ProgramExercise[],
+  states: Record<string, Pick<SessionSetState, 'logged'>>
+): number {
+  const idx = exercises.findIndex((ex) => !states[ex.id]?.logged)
+  return idx === -1 ? Math.max(0, exercises.length - 1) : idx
+}
+
 export interface SessionSummary {
   exerciseCount: number
   totalSets: number

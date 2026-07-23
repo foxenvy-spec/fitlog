@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { parseRestSeconds, initSessionSet, computeSessionSummary, aggregateMuscleLoads } from './workoutSession'
+import {
+  parseRestSeconds,
+  initSessionSet,
+  initSessionStates,
+  firstUnfinishedIndex,
+  computeSessionSummary,
+  aggregateMuscleLoads,
+} from './workoutSession'
 import type { ProgramExercise } from './types'
 
 describe('parseRestSeconds', () => {
@@ -65,6 +72,65 @@ describe('initSessionSet', () => {
     expect(state.reps).toBeNull()
     expect(state.weightKg).toBeNull()
     expect(state.rpe).toBeNull()
+  })
+})
+
+describe('initSessionStates', () => {
+  it('marks an exercise already logged today as logged and restores its sets', () => {
+    const exercises = [
+      makeExercise({ id: 'ex-1', exercise_name: 'เบนช์เพรส' }),
+      makeExercise({ id: 'ex-2', exercise_name: 'ดึงข้อ' }),
+    ]
+    const states = initSessionStates(
+      exercises,
+      [{ id: 'w-1', exercise_name: 'เบนช์เพรส', rpe: 8 }],
+      [
+        { workout_id: 'w-1', set_number: 1, reps: 8, weight_kg: 60 },
+        { workout_id: 'w-1', set_number: 2, reps: 6, weight_kg: 65 },
+      ]
+    )
+
+    expect(states['ex-1'].logged).toBe(true)
+    expect(states['ex-1'].workoutId).toBe('w-1')
+    expect(states['ex-1'].setsLog).toEqual([
+      { reps: 8, weightKg: 60 },
+      { reps: 6, weightKg: 65 },
+    ])
+    // draft ค่าล่าสุดควรตั้งจากเซ็ตท้ายสุดที่บันทึกไว้ ไม่ใช่ค่าเป้าหมายเดิม
+    expect(states['ex-1'].reps).toBe(6)
+    expect(states['ex-1'].weightKg).toBe(65)
+
+    // ท่าที่ยังไม่บันทึกวันนี้ต้องเหมือน initSessionSet ปกติ
+    expect(states['ex-2'].logged).toBe(false)
+    expect(states['ex-2'].setsLog).toEqual([])
+  })
+
+  it('leaves every exercise untouched when nothing was logged today', () => {
+    const exercises = [makeExercise({ id: 'ex-1' })]
+    const states = initSessionStates(exercises, [], [])
+    expect(states['ex-1']).toEqual(initSessionSet(exercises[0]))
+  })
+})
+
+describe('firstUnfinishedIndex', () => {
+  it('resumes at the first exercise not yet logged', () => {
+    const exercises = [
+      makeExercise({ id: 'ex-1' }),
+      makeExercise({ id: 'ex-2' }),
+      makeExercise({ id: 'ex-3' }),
+    ]
+    const states = {
+      'ex-1': { logged: true },
+      'ex-2': { logged: false },
+      'ex-3': { logged: false },
+    }
+    expect(firstUnfinishedIndex(exercises, states)).toBe(1)
+  })
+
+  it('points at the last exercise when everything is already logged', () => {
+    const exercises = [makeExercise({ id: 'ex-1' }), makeExercise({ id: 'ex-2' })]
+    const states = { 'ex-1': { logged: true }, 'ex-2': { logged: true } }
+    expect(firstUnfinishedIndex(exercises, states)).toBe(1)
   })
 })
 
