@@ -5,12 +5,14 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getWeekRange } from '@/lib/dashboardStats'
 import { VOLUME_MUSCLES, MUSCLE_GROUP_COLORS, MUSCLE_GROUP_LABELS_EN, type MuscleGroup } from '@/lib/muscle-groups'
+import AnimatedBarFill from './AnimatedBarFill'
 import Skeleton from './Skeleton'
 
 // Graphic Muscle Heatmap — ไดอะแกรมรูปร่างคน (วาดเองด้วย SVG ธรรมดา ไม่พึ่ง react-body-highlighter
 // เพราะไลบรารีนั้นไม่รองรับกล้ามเนื้อขา) ไล่สีตาม % สัดส่วนเซ็ตของกลุ่มกล้ามเนื้อนั้นเทียบกับ
 // เซ็ตทั้งหมดในสัปดาห์นี้ พร้อมด้านหลัง (back view) และรายการท่าที่โดนกลุ่มนั้นบ้าง
 type View = 'front' | 'back'
+type BalanceTier = 'good' | 'ok' | 'poor'
 
 interface GroupStat {
   group: MuscleGroup
@@ -22,6 +24,18 @@ interface GroupStat {
 // กลุ่มที่ปรากฏในไดอะแกรมของแต่ละมุมมอง — ด้านหน้าไม่มี "หลัง", ด้านหลังไม่มี "อก"/"แกนกลางลำตัว"
 const FRONT_REGIONS: MuscleGroup[] = ['ไหล่', 'อก', 'แขน', 'แกนกลางลำตัว', 'ขา']
 const BACK_REGIONS: MuscleGroup[] = ['ไหล่', 'หลัง', 'แขน', 'ขา']
+
+const BALANCE_COLOR: Record<BalanceTier, string> = {
+  good: '#7A9B57', // moss
+  ok: '#E8A33D', // amber
+  poor: '#C1503A', // rust
+}
+
+function balanceTier(pct: number): BalanceTier {
+  if (pct >= 80) return 'good'
+  if (pct >= 50) return 'ok'
+  return 'poor'
+}
 
 // แปลง % ส่วนแบ่งของกลุ่ม เทียบกับเซ็ตรวมทั้งสัปดาห์ ให้เป็นความเข้ม opacity ของสีกลุ่มนั้น
 // (เส้นโค้ง: 0% = จาง 12%, ตั้งแต่ ~35% ขึ้นไป = เข้มเต็มที่ เพราะเฉลี่ยแล้ว 6 กลุ่มจะอยู่ราว 16-17% ต่อกลุ่ม)
@@ -85,6 +99,42 @@ export default function WeeklyMuscleHeatmap() {
 
   const hasAnyData = stats.some((s) => s.sets > 0)
   const regions = view === 'front' ? FRONT_REGIONS : BACK_REGIONS
+
+  const totalSets = useMemo(() => stats.reduce((sum, s) => sum + s.sets, 0), [stats])
+  const totalExercises = useMemo(() => {
+    const exercisesByGroup = data?.exercisesByGroup ?? {}
+    const names = new Set<string>()
+    Object.values(exercisesByGroup).forEach((exMap) => Object.keys(exMap).forEach((name) => names.add(name)))
+    return names.size
+  }, [data])
+
+  // Balance score — เทียบ % ของแต่ละกลุ่มกับสัดส่วนที่ "เท่ากันทุกกลุ่มพอดี" (100/6 ≈ 16.7%)
+  // ยิ่งกลุ่มไหนเบี่ยงจากค่านี้มาก (ฝึกหนักไปทางเดียว หรือไม่ฝึกเลย) คะแนนยิ่งลด
+  const balance = useMemo(() => {
+    if (!hasAnyData) return null
+    const idealPct = 100 / VOLUME_MUSCLES.length
+    const avgDeviation = stats.reduce((sum, s) => sum + Math.abs(s.pct - idealPct), 0) / stats.length
+    const pct = Math.max(0, Math.min(100, Math.round(100 - (avgDeviation / idealPct) * 100)))
+    return { pct, tier: balanceTier(pct) }
+  }, [stats, hasAnyData])
+
+  // กลุ่มที่ฝึกน้อยที่สุด (หรือยังไม่ได้ฝึกเลย) — ใช้แนะนำในข้อความ AI Coach ด้านล่าง
+  const weakestGroup = useMemo(() => {
+    if (!hasAnyData) return null
+    return stats.reduce((min, s) => (s.pct < min.pct ? s : min), stats[0])
+  }, [stats, hasAnyData])
+
+  const coachMessage = useMemo(() => {
+    if (!balance || !weakestGroup) return null
+    const label = MUSCLE_GROUP_LABELS_EN[weakestGroup.group]
+    if (balance.tier === 'good') {
+      return { tier: 'good' as BalanceTier, text: 'ฝึกสมดุลดีมาก รักษาระดับนี้ไว้ต่อไป' }
+    }
+    if (balance.tier === 'ok') {
+      return { tier: 'ok' as BalanceTier, text: `แนะนำเพิ่ม ${weakestGroup.group} (${label}) เพื่อสมดุลที่ดีขึ้น` }
+    }
+    return { tier: 'poor' as BalanceTier, text: `ควรเพิ่ม ${weakestGroup.group} (${label}) โดยเร็ว ห่างจากกลุ่มอื่นมาก` }
+  }, [balance, weakestGroup])
 
   function regionStyle(group: MuscleGroup) {
     const stat = statByGroup.get(group)
@@ -190,17 +240,22 @@ export default function WeeklyMuscleHeatmap() {
                       <button
                         type="button"
                         onClick={() => toggleExpand(s.group)}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
+                        className="w-full flex flex-col gap-1 px-2.5 py-2 text-left"
                       >
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: intensityOpacity(s.pct) }} />
-                        <span className="text-xs text-ink flex-1 min-w-0">
-                          {s.group} <span className="text-muted text-[10px]">({MUSCLE_GROUP_LABELS_EN[s.group]})</span>
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: intensityOpacity(s.pct) }} />
+                          <span className="text-xs text-ink flex-1 min-w-0">
+                            {s.group} <span className="text-muted text-[10px]">({MUSCLE_GROUP_LABELS_EN[s.group]})</span>
+                          </span>
+                          <span className="text-[11px] font-mono font-bold shrink-0" style={{ color }}>
+                            {Math.round(s.pct)}%
+                          </span>
+                          <span className="text-[10px] font-mono text-muted shrink-0 w-14 text-right">{s.sets} เซ็ต</span>
+                          {s.topExercises.length > 0 && <span className="text-muted text-[10px] shrink-0">{isOpen ? '▲' : '▼'}</span>}
                         </span>
-                        <span className="text-[11px] font-mono font-bold shrink-0" style={{ color }}>
-                          {Math.round(s.pct)}%
+                        <span className="relative h-1.5 rounded-full bg-bg/60 overflow-hidden">
+                          <AnimatedBarFill pct={s.pct} color={color} />
                         </span>
-                        <span className="text-[10px] font-mono text-muted shrink-0 w-14 text-right">{s.sets} เซ็ต</span>
-                        {s.topExercises.length > 0 && <span className="text-muted text-[10px] shrink-0">{isOpen ? '▲' : '▼'}</span>}
                       </button>
                       {isOpen && s.topExercises.length > 0 && (
                         <ul className="px-2.5 pb-2 space-y-1">
@@ -218,6 +273,36 @@ export default function WeeklyMuscleHeatmap() {
             )}
           </div>
         </div>
+      )}
+
+      {!isLoading && hasAnyData && balance && coachMessage && (
+        <>
+          <div className="border-t border-line px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span className="text-xs text-ink flex items-center gap-1.5">
+              <span className="text-muted">💪</span>
+              <span className="font-mono font-medium">{totalSets}</span> Sets
+            </span>
+            <span className="text-xs text-ink flex items-center gap-1.5">
+              <span className="text-muted">🏋</span>
+              <span className="font-mono font-medium">{totalExercises}</span> Exercises
+            </span>
+            <span
+              className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{ color: BALANCE_COLOR[balance.tier], backgroundColor: `${BALANCE_COLOR[balance.tier]}22` }}
+            >
+              🎯 Balance {balance.pct}%
+            </span>
+          </div>
+          <div
+            className="px-4 py-2.5 text-xs flex items-start gap-1.5"
+            style={{ backgroundColor: `${BALANCE_COLOR[coachMessage.tier]}14`, color: BALANCE_COLOR[coachMessage.tier] }}
+          >
+            <span>💡</span>
+            <span>
+              <span className="font-medium">AI Coach:</span> {coachMessage.text}
+            </span>
+          </div>
+        </>
       )}
     </div>
   )
