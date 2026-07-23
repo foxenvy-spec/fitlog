@@ -149,12 +149,40 @@ export default function HealthPage() {
       .map((m) => ({ label: shortLabel(m.measured_at), value: m.thigh_cm as number }))
   }, [metrics])
 
+  const bodyFatKgTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.body_fat_kg !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: toDisplay(m.body_fat_kg as number) }))
+  }, [metrics, toDisplay])
+
   const bodyWaterTrend = useMemo(() => {
     return [...metrics]
-      .filter((m) => m.body_water_pct !== null)
+      .filter((m) => m.body_water_kg !== null)
       .reverse()
-      .map((m) => ({ label: shortLabel(m.measured_at), value: m.body_water_pct as number }))
-  }, [metrics])
+      .map((m) => ({ label: shortLabel(m.measured_at), value: toDisplay(m.body_water_kg as number) }))
+  }, [metrics, toDisplay])
+
+  const inorganicSaltTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.inorganic_salt_kg !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: toDisplay(m.inorganic_salt_kg as number) }))
+  }, [metrics, toDisplay])
+
+  const proteinTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.protein_kg !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: toDisplay(m.protein_kg as number) }))
+  }, [metrics, toDisplay])
+
+  const skeletalMuscleTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.skeletal_muscle_kg !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: toDisplay(m.skeletal_muscle_kg as number) }))
+  }, [metrics, toDisplay])
 
   const visceralFatTrend = useMemo(() => {
     return [...metrics]
@@ -212,7 +240,11 @@ export default function HealthPage() {
             <MiniStat label="Muscle Mass" value={latest?.muscle_kg != null ? toDisplay(latest.muscle_kg) : null} unit={unit} />
             <MiniStat label="ต้นแขนล่าสุด" value={latest?.arm_cm} unit="ซม." />
             <MiniStat label="ต้นขาล่าสุด" value={latest?.thigh_cm} unit="ซม." />
-            <MiniStat label="น้ำในร่างกาย" value={latest?.body_water_pct} unit="%" />
+            <MiniStat label="มวลไขมัน" value={latest?.body_fat_kg != null ? toDisplay(latest.body_fat_kg) : null} unit={unit} />
+            <MiniStat label="น้ำในร่างกาย" value={latest?.body_water_kg != null ? toDisplay(latest.body_water_kg) : null} unit={unit} />
+            <MiniStat label="เกลือแร่" value={latest?.inorganic_salt_kg != null ? toDisplay(latest.inorganic_salt_kg) : null} unit={unit} />
+            <MiniStat label="โปรตีน" value={latest?.protein_kg != null ? toDisplay(latest.protein_kg) : null} unit={unit} />
+            <MiniStat label="กล้ามเนื้อโครงร่าง" value={latest?.skeletal_muscle_kg != null ? toDisplay(latest.skeletal_muscle_kg) : null} unit={unit} />
             <MiniStat label="ไขมันช่องท้อง" value={latest?.visceral_fat_grade} unit="ระดับ" decimals={0} />
             <MiniStat label="BMR" value={latest?.bmr_kcal} unit="kcal" decimals={0} />
           </div>
@@ -240,8 +272,20 @@ export default function HealthPage() {
           {thighTrend.length > 1 && (
             <MetricTrendChart title="แนวโน้มรอบต้นขา" data={thighTrend} color="#5F8FA8" unit="ซม." />
           )}
+          {bodyFatKgTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มมวลไขมัน" data={bodyFatKgTrend} color="#C1503A" unit={unit} />
+          )}
           {bodyWaterTrend.length > 1 && (
-            <MetricTrendChart title="แนวโน้มน้ำในร่างกาย" data={bodyWaterTrend} color="#3D8FE8" unit="%" />
+            <MetricTrendChart title="แนวโน้มน้ำในร่างกาย" data={bodyWaterTrend} color="#3D8FE8" unit={unit} />
+          )}
+          {inorganicSaltTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มเกลือแร่" data={inorganicSaltTrend} color="#A89F5F" unit={unit} />
+          )}
+          {proteinTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มโปรตีน" data={proteinTrend} color="#5FA8A0" unit={unit} />
+          )}
+          {skeletalMuscleTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มกล้ามเนื้อโครงร่าง" data={skeletalMuscleTrend} color="#7FA85F" unit={unit} />
           )}
           {visceralFatTrend.length > 1 && (
             <MetricTrendChart title="แนวโน้มไขมันช่องท้อง" data={visceralFatTrend} color="#C1503A" unit="ระดับ" />
@@ -290,7 +334,11 @@ export default function HealthPage() {
                       {m.hip_cm !== null && <span>สะโพก {m.hip_cm} ซม.</span>}
                       {m.arm_cm !== null && <span>ต้นแขน {m.arm_cm} ซม.</span>}
                       {m.thigh_cm !== null && <span>ต้นขา {m.thigh_cm} ซม.</span>}
-                      {m.body_water_pct !== null && <span>น้ำในร่างกาย {m.body_water_pct}%</span>}
+                      {m.body_fat_kg !== null && <span>มวลไขมัน {format(m.body_fat_kg)}</span>}
+                      {m.body_water_kg !== null && <span>น้ำในร่างกาย {format(m.body_water_kg)}</span>}
+                      {m.inorganic_salt_kg !== null && <span>เกลือแร่ {format(m.inorganic_salt_kg)}</span>}
+                      {m.protein_kg !== null && <span>โปรตีน {format(m.protein_kg)}</span>}
+                      {m.skeletal_muscle_kg !== null && <span>กล้ามเนื้อโครงร่าง {format(m.skeletal_muscle_kg)}</span>}
                       {m.visceral_fat_grade !== null && <span>ไขมันช่องท้อง ระดับ {m.visceral_fat_grade}</span>}
                       {m.bmr_kcal !== null && <span>BMR {m.bmr_kcal} kcal</span>}
                     </p>
@@ -422,7 +470,11 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   const [hip, setHip] = useState('')
   const [arm, setArm] = useState('')
   const [thigh, setThigh] = useState('')
+  const [bodyFatKg, setBodyFatKg] = useState('')
   const [bodyWater, setBodyWater] = useState('')
+  const [inorganicSalt, setInorganicSalt] = useState('')
+  const [protein, setProtein] = useState('')
+  const [skeletalMuscle, setSkeletalMuscle] = useState('')
   const [visceralFat, setVisceralFat] = useState('')
   const [bmr, setBmr] = useState('')
   const [saving, setSaving] = useState(false)
@@ -450,7 +502,11 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
       hip_cm: hip ? Number(hip) : null,
       arm_cm: arm ? Number(arm) : null,
       thigh_cm: thigh ? Number(thigh) : null,
-      body_water_pct: bodyWater ? Number(bodyWater) : null,
+      body_fat_kg: bodyFatKg ? toKg(Number(bodyFatKg)) : null,
+      body_water_kg: bodyWater ? toKg(Number(bodyWater)) : null,
+      inorganic_salt_kg: inorganicSalt ? toKg(Number(inorganicSalt)) : null,
+      protein_kg: protein ? toKg(Number(protein)) : null,
+      skeletal_muscle_kg: skeletalMuscle ? toKg(Number(skeletalMuscle)) : null,
       visceral_fat_grade: visceralFat ? Number(visceralFat) : null,
       bmr_kcal: bmr ? Number(bmr) : null,
     }
@@ -469,7 +525,11 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
     setHip('')
     setArm('')
     setThigh('')
+    setBodyFatKg('')
     setBodyWater('')
+    setInorganicSalt('')
+    setProtein('')
+    setSkeletalMuscle('')
     setVisceralFat('')
     setBmr('')
   }
@@ -494,7 +554,11 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
         <LabeledInput label="สะโพก (ซม.)" value={hip} onChange={setHip} />
         <LabeledInput label="ต้นแขน (ซม.)" value={arm} onChange={setArm} />
         <LabeledInput label="ต้นขา (ซม.)" value={thigh} onChange={setThigh} />
-        <LabeledInput label="น้ำในร่างกาย (%)" value={bodyWater} onChange={setBodyWater} />
+        <LabeledInput label={`มวลไขมัน (${unit})`} value={bodyFatKg} onChange={setBodyFatKg} />
+        <LabeledInput label={`น้ำในร่างกาย (${unit})`} value={bodyWater} onChange={setBodyWater} />
+        <LabeledInput label={`เกลือแร่ (${unit})`} value={inorganicSalt} onChange={setInorganicSalt} />
+        <LabeledInput label={`โปรตีน (${unit})`} value={protein} onChange={setProtein} />
+        <LabeledInput label={`กล้ามเนื้อโครงร่าง (${unit})`} value={skeletalMuscle} onChange={setSkeletalMuscle} />
         <LabeledInput label="ไขมันช่องท้อง (ระดับ)" value={visceralFat} onChange={setVisceralFat} />
         <LabeledInput label="BMR (kcal)" value={bmr} onChange={setBmr} />
       </div>
