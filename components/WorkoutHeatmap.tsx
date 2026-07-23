@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { todayStr } from '@/lib/weekdays'
+import { useWeightUnit } from './WeightUnitProvider'
+import type { Workout } from '@/lib/types'
 import Skeleton from './Skeleton'
 
 // จ อ พ พฤ ศ ส อา — เริ่มจันทร์ ให้ตรงกับลำดับคอลัมน์ของกริด (Monday-first)
@@ -40,23 +42,31 @@ export default function WorkoutHeatmap() {
   const monthEnd = useMemo(() => new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0), [cursor])
   const monthKey = `${cursor.getFullYear()}-${cursor.getMonth()}`
 
-  const { data: countByDate = {}, isLoading: loading } = useQuery({
+  const { data, isLoading: loading } = useQuery({
     queryKey: ['workout-heatmap', monthKey],
     queryFn: async () => {
       const { data } = await supabase
         .from('workouts')
-        .select('performed_at')
+        .select('*')
         .gte('performed_at', toIso(monthStart))
         .lte('performed_at', toIso(monthEnd))
+        .order('created_at')
+      const rows = (data as Workout[]) ?? []
       const counts: Record<string, number> = {}
-      ;((data as { performed_at: string }[]) ?? []).forEach((r) => {
+      const byDate: Record<string, Workout[]> = {}
+      rows.forEach((r) => {
         counts[r.performed_at] = (counts[r.performed_at] ?? 0) + 1
+        ;(byDate[r.performed_at] ??= []).push(r)
       })
-      return counts
+      return { counts, byDate }
     },
     // เก็บ cache ของเดือนที่เคยดูไว้ ไม่ต้องยิง query ซ้ำเวลาเลื่อนกลับไปกลับมา
     staleTime: 60_000,
   })
+  const countByDate = data?.counts ?? {}
+  const byDate = data?.byDate ?? {}
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const { format } = useWeightUnit()
 
   const weeks = useMemo(() => {
     const leadingBlanks = (monthStart.getDay() + 6) % 7 // Monday-first
@@ -82,6 +92,7 @@ export default function WorkoutHeatmap() {
 
   function shiftMonth(delta: number) {
     setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
+    setSelectedDate(null)
   }
 
   return (
@@ -117,49 +128,109 @@ export default function WorkoutHeatmap() {
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-2 max-w-md mx-auto">
-        <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-          {WEEKDAY_LABELS.map((w) => (
-            <span key={w} className="text-center text-[9px] tracked uppercase text-muted">
-              {w}
-            </span>
-          ))}
+      <div className="px-4 pb-4 pt-2 flex flex-col lg:flex-row lg:items-start gap-4">
+        <div className="max-w-md w-full shrink-0">
+          <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+            {WEEKDAY_LABELS.map((w) => (
+              <span key={w} className="text-center text-[9px] tracked uppercase text-muted">
+                {w}
+              </span>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1.5">
+                {week.map((date, di) => {
+                  if (!date) return <div key={di} className="aspect-square rounded-[4px]" />
+                  if (loading) return <Skeleton key={di} className="aspect-square" />
+                  const iso = toIso(date)
+                  const isFuture = iso > today
+                  const isToday = iso === today
+                  const entryCount = countByDate[iso] ?? 0
+                  const level = intensityLevel(entryCount)
+                  const clickable = entryCount > 0
+                  return (
+                    <button
+                      key={di}
+                      type="button"
+                      disabled={!clickable}
+                      onClick={() => setSelectedDate(iso === selectedDate ? null : iso)}
+                      title={`${date.getDate()} ${monthLabel}${entryCount ? ` · ${entryCount} รายการ` : ''}`}
+                      className={`aspect-square rounded-[4px] flex items-center justify-center text-[9px] font-mono transition ${
+                        isFuture ? 'border border-dashed border-line text-muted/50' : 'text-bg'
+                      } ${isToday ? 'ring-1 ring-amber ring-offset-1 ring-offset-surface' : ''} ${
+                        selectedDate === iso ? 'ring-2 ring-steel ring-offset-1 ring-offset-surface' : ''
+                      } ${clickable ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}`}
+                      style={!isFuture ? { backgroundColor: LEVEL_STYLE[level].bg } : undefined}
+                    >
+                      {level === 0 && !isFuture ? <span className="text-muted/60">{date.getDate()}</span> : null}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 mt-3">
+            <span className="text-[9px] text-muted">น้อย</span>
+            {[0, 1, 2, 3].map((lv) => (
+              <span key={lv} className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: LEVEL_STYLE[lv].bg }} />
+            ))}
+            <span className="text-[9px] text-muted">มาก</span>
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          {weeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7 gap-1.5">
-              {week.map((date, di) => {
-                if (!date) return <div key={di} className="aspect-square rounded-[4px]" />
-                if (loading) return <Skeleton key={di} className="aspect-square" />
-                const iso = toIso(date)
-                const isFuture = iso > today
-                const isToday = iso === today
-                const level = intensityLevel(countByDate[iso] ?? 0)
-                return (
-                  <div
-                    key={di}
-                    title={`${date.getDate()} ${monthLabel}${countByDate[iso] ? ` · ${countByDate[iso]} รายการ` : ''}`}
-                    className={`aspect-square rounded-[4px] flex items-center justify-center text-[9px] font-mono ${
-                      isFuture ? 'border border-dashed border-line text-muted/50' : 'text-bg'
-                    } ${isToday ? 'ring-1 ring-amber ring-offset-1 ring-offset-surface' : ''}`}
-                    style={!isFuture ? { backgroundColor: LEVEL_STYLE[level].bg } : undefined}
-                  >
-                    {level === 0 && !isFuture ? <span className="text-muted/60">{date.getDate()}</span> : null}
-                  </div>
-                )
-              })}
+        {/* detail panel — sits beside the calendar on wide screens (lg:), stacks below it
+            otherwise; only appears once a trained day is clicked so it doesn't take up
+            space (or look empty) the rest of the time */}
+        {selectedDate && (
+          <div className="flex-1 min-w-0 lg:border-l lg:border-line lg:pl-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-display tracked uppercase text-ink">
+                {new Date(selectedDate + 'T00:00:00').toLocaleDateString('th-TH', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(null)}
+                aria-label="ปิด"
+                className="text-muted hover:text-ink text-xs"
+              >
+                ✕
+              </button>
             </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-end gap-1.5 mt-3">
-          <span className="text-[9px] text-muted">น้อย</span>
-          {[0, 1, 2, 3].map((lv) => (
-            <span key={lv} className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: LEVEL_STYLE[lv].bg }} />
-          ))}
-          <span className="text-[9px] text-muted">มาก</span>
-        </div>
+            <ul className="space-y-2">
+              {(byDate[selectedDate] ?? []).map((w) => (
+                <li key={w.id} className="rounded-md bg-surface2 px-3 py-2 text-xs">
+                  {w.type === 'strength' ? (
+                    <>
+                      <span className="text-steel font-display tracked uppercase text-[10px] mr-2">STR</span>
+                      <span className="text-ink">{w.exercise_name ?? '—'}</span>
+                      <span className="text-muted">
+                        {' '}
+                        — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-rusttext font-display tracked uppercase text-[10px] mr-2">CAR</span>
+                      <span className="text-ink">{w.cardio_type}</span>
+                      <span className="text-muted">
+                        {' '}
+                        — {w.distance_km}km / {w.duration_min}min
+                      </span>
+                    </>
+                  )}
+                  {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
