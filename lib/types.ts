@@ -62,6 +62,8 @@ export interface BodyMetric {
   waist_cm: number | null
   chest_cm: number | null
   hip_cm: number | null
+  arm_cm: number | null
+  thigh_cm: number | null
   notes: string | null
   created_at: string
 }
