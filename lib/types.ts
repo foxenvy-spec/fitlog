@@ -64,6 +64,9 @@ export interface BodyMetric {
   hip_cm: number | null
   arm_cm: number | null
   thigh_cm: number | null
+  body_water_pct: number | null
+  visceral_fat_grade: number | null
+  bmr_kcal: number | null
   notes: string | null
   created_at: string
 }
