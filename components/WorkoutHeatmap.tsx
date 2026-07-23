@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { todayStr } from '@/lib/weekdays'
 import { useWeightUnit } from './WeightUnitProvider'
 import type { BodyMetric, Workout, WorkoutSet } from '@/lib/types'
-import { computeDaySummary, computeExerciseProgress, countDayPRs, formatDuration } from '@/lib/workoutDisplay'
+import { computeDaySummary, computeExerciseProgress, countDayPRs, formatDuration, workoutVolumeKg } from '@/lib/workoutDisplay'
 import { HEATMAP_METRIC_LABEL, loadHeatmapMetric, saveHeatmapMetric, type HeatmapMetric } from '@/lib/heatmapPrefs'
 import ExerciseProgressBadge from './ExerciseProgressBadge'
 import Skeleton from './Skeleton'
@@ -120,7 +120,27 @@ export default function WorkoutHeatmap() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [metric, setMetric] = useState<HeatmapMetric>(() => loadHeatmapMetric())
+  const [searchQuery, setSearchQuery] = useState('')
   const { unit, toDisplay, format } = useWeightUnit()
+
+  // ค้นหาประวัติ (365 วันย้อนหลัง จาก progressHistory) ด้วยชื่อท่า — เห็นผลทันทีไม่ต้องกด enter
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    return progressHistory
+      .filter((w) => w.exercise_name?.toLowerCase().includes(q))
+      .sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1))
+      .slice(0, 8)
+  }, [searchQuery, progressHistory])
+
+  // กดผลลัพธ์จากช่องค้นหา — เลื่อนปฏิทินไปเดือนนั้นแล้วเปิดวันนั้นให้เลย
+  function jumpToWorkout(w: Workout) {
+    const d = new Date(w.performed_at + 'T00:00:00')
+    setCursor(new Date(d.getFullYear(), d.getMonth(), 1))
+    setSelectedDate(w.performed_at)
+    setExpandedIds(new Set())
+    setSearchQuery('')
+  }
 
   function chooseMetric(next: HeatmapMetric) {
     setMetric(next)
@@ -203,6 +223,21 @@ export default function WorkoutHeatmap() {
     }
   }
 
+  // สรุป volume ต่อกลุ่มกล้ามเนื้อของวันหนึ่งๆ — ใช้ทำแถบ Muscle Group Summary ด้านบนของแผงรายละเอียด
+  // เรียงจากมากไปน้อยเพื่อให้เห็นทันทีว่าวันนั้น "เน้น" กล้ามเนื้อส่วนไหน
+  function muscleGroupVolumes(dayWorkouts: Workout[]): { group: string; volumeKg: number }[] {
+    const totals: Record<string, number> = {}
+    dayWorkouts
+      .filter((w) => w.type === 'strength' && w.muscle_group)
+      .forEach((w) => {
+        const g = w.muscle_group as string
+        totals[g] = (totals[g] ?? 0) + workoutVolumeKg(w)
+      })
+    return Object.entries(totals)
+      .map(([group, volumeKg]) => ({ group, volumeKg }))
+      .sort((a, b) => b.volumeKg - a.volumeKg)
+  }
+
   // รายการ id ของท่าเวทในวันที่เลือกที่มีเซ็ตให้กางดูได้ — ใช้ตอนกด Expand All ให้กางพร้อมกันทีเดียว
   const expandableWorkoutIds = useMemo(() => {
     const dayWorkouts = selectedDate ? (byDate[selectedDate] ?? []) : []
@@ -245,6 +280,50 @@ export default function WorkoutHeatmap() {
             ›
           </button>
         </div>
+      </div>
+
+      <div className="px-4 pt-1 pb-2 relative">
+        <div className="relative">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted pointer-events-none">🔍</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Exercise"
+            className="w-full rounded-md bg-surface2 border border-line pl-7 pr-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-none focus:border-amber/50"
+          />
+        </div>
+        {searchQuery.trim() && (
+          <div className="absolute left-4 right-4 mt-1 rounded-md bg-surface2 border border-line shadow-elevated z-10 overflow-hidden">
+            {searchResults.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-muted">ไม่พบท่านี้ในประวัติ 365 วันที่ผ่านมา</p>
+            ) : (
+              searchResults.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => jumpToWorkout(w)}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-bg/40 transition flex items-center justify-between gap-2"
+                >
+                  <span className="min-w-0">
+                    <span className="text-ink">{w.exercise_name}</span>
+                    <span className="text-muted">
+                      {' '}
+                      — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                    </span>
+                  </span>
+                  <span className="text-muted shrink-0 font-mono text-[10px]">
+                    {new Date(w.performed_at + 'T00:00:00').toLocaleDateString('th-TH', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: '2-digit',
+                    })}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pt-1 pb-2 flex items-center gap-1.5 flex-wrap">
@@ -404,21 +483,46 @@ export default function WorkoutHeatmap() {
               {(() => {
                 const dayWorkouts = byDate[selectedDate] ?? []
                 const summary = computeDaySummary(dayWorkouts)
+                const groupVolumes = muscleGroupVolumes(dayWorkouts)
+                const maxGroupVolume = groupVolumes.length > 0 ? groupVolumes[0].volumeKg : 0
                 return (
-                  <div className="rounded-md bg-surface2 px-3 py-2.5 space-y-1 text-xs">
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ink">
-                      <span>🏋️ {summary.exerciseCount} Exercises</span>
-                      {summary.totalSets > 0 && <span>🔥 {summary.totalSets} Sets</span>}
-                      {summary.durationMin !== null && <span>⏱ {formatDuration(summary.durationMin)}</span>}
-                    </div>
-                    {summary.totalVolumeKg > 0 && (
-                      <p className="text-ink">🏋️ Volume {Math.round(toDisplay(summary.totalVolumeKg)).toLocaleString()} {unit}</p>
+                  <>
+                    {groupVolumes.length > 0 && (
+                      <div className="rounded-md bg-surface2 px-3 py-2.5 space-y-1.5 text-xs">
+                        <p className="text-[9px] tracked uppercase text-muted">Muscle Group Summary</p>
+                        {groupVolumes.map(({ group, volumeKg }) => (
+                          <div key={group} className="flex items-center gap-2">
+                            <span className="w-16 shrink-0 text-ink text-[11px] truncate">{group}</span>
+                            <div className="flex-1 h-2 rounded-full bg-bg/60 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-amber"
+                                style={{ width: `${Math.max(6, (volumeKg / maxGroupVolume) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-16 shrink-0 text-right font-mono text-muted text-[10px] tabular">
+                              {Math.round(toDisplay(volumeKg)).toLocaleString()} {unit}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                    {summary.muscleGroups.length > 0 && <p className="text-muted">💪 {summary.muscleGroups.join(' / ')}</p>}
-                  </div>
+                    <div className="rounded-md bg-surface2 px-3 py-2.5 space-y-1 text-xs">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-ink">
+                        <span>🏋️ {summary.exerciseCount} Exercises</span>
+                        {summary.totalSets > 0 && <span>🔥 {summary.totalSets} Sets</span>}
+                        {summary.durationMin !== null && <span>⏱ {formatDuration(summary.durationMin)}</span>}
+                      </div>
+                      {summary.totalVolumeKg > 0 && (
+                        <p className="text-ink">
+                          🏋️ Volume {Math.round(toDisplay(summary.totalVolumeKg)).toLocaleString()} {unit}
+                        </p>
+                      )}
+                      {summary.muscleGroups.length > 0 && <p className="text-muted">💪 {summary.muscleGroups.join(' / ')}</p>}
+                    </div>
+                  </>
                 )
               })()}
-              {(byDate[selectedDate] ?? []).map((w) => {
+              {(byDate[selectedDate] ?? []).map((w, wi, arr) => {
                 const realSets = setsByWorkoutId[w.id] ?? []
                 // session/program flow เก็บ reps/น้ำหนักเป็นค่าเดียวต่อท่า ไม่มี workout_sets จริง —
                 // จำลองเป็นหลายเซ็ตค่าเท่ากันจาก sets/reps/weight_kg แทน (เหมือนที่หน้า /log ทำกับ
@@ -436,52 +540,67 @@ export default function WorkoutHeatmap() {
                       : []
                 const hasSets = w.type === 'strength' && displaySets.length > 0
                 const expanded = expandedIds.has(w.id)
+                const timeLabel = new Date(w.created_at).toLocaleTimeString('th-TH', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })
+                const isLast = wi === arr.length - 1
                 return (
-                  <li key={w.id} className="rounded-md bg-surface2 overflow-hidden">
-                    <button
-                      type="button"
-                      disabled={!hasSets}
-                      onClick={() => toggleExpanded(w.id)}
-                      className={`w-full text-left px-3 py-2 text-xs ${hasSets ? 'cursor-pointer hover:bg-surface2/60' : 'cursor-default'}`}
-                    >
-                      {w.type === 'strength' ? (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="min-w-0">
-                            <span className="mr-1.5">🏋️</span>
-                            <span className="text-ink">{w.exercise_name ?? '—'}</span>
+                  // Timeline — เวลาที่บันทึกจริงต่อท่า ต่อกันด้วยลูกศร ให้เห็นลำดับของเซสชันจริง
+                  // แทนที่จะเป็นแค่รายการเรียงเฉยๆ
+                  <li key={w.id} className="flex gap-2">
+                    <div className="w-11 shrink-0 flex flex-col items-center pt-2.5">
+                      <span className="text-[9px] font-mono text-steel tabular">{timeLabel}</span>
+                      {!isLast && <span className="text-muted/30 text-[10px] leading-none mt-1">↓</span>}
+                    </div>
+                    <div className="flex-1 min-w-0 rounded-md bg-surface2 overflow-hidden">
+                      <button
+                        type="button"
+                        disabled={!hasSets}
+                        onClick={() => toggleExpanded(w.id)}
+                        className={`w-full text-left px-3 py-2 text-xs ${hasSets ? 'cursor-pointer hover:bg-surface2/60' : 'cursor-default'}`}
+                      >
+                        {w.type === 'strength' ? (
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="min-w-0">
+                              <span className="mr-1.5">🏋️</span>
+                              <span className="text-ink">{w.exercise_name ?? '—'}</span>
+                              <span className="text-muted">
+                                {' '}
+                                — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                              </span>
+                              {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
+                              {w.muscle_group && <p className="text-[10px] text-steel mt-0.5">{w.muscle_group}</p>}
+                            </span>
+                            <ExerciseProgressBadge progress={computeExerciseProgress(w, progressHistory)} format={format} />
+                          </div>
+                        ) : (
+                          <>
+                            <span className="mr-1.5">🏃</span>
+                            <span className="text-ink">{w.cardio_type}</span>
                             <span className="text-muted">
                               {' '}
-                              — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                              — {w.distance_km}km / {w.duration_min}min
                             </span>
-                            {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
-                          </span>
-                          <ExerciseProgressBadge progress={computeExerciseProgress(w, progressHistory)} format={format} />
-                        </div>
-                      ) : (
-                        <>
-                          <span className="mr-1.5">🏃</span>
-                          <span className="text-ink">{w.cardio_type}</span>
-                          <span className="text-muted">
-                            {' '}
-                            — {w.distance_km}km / {w.duration_min}min
-                          </span>
-                        </>
-                      )}
-                      {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
-                    </button>
+                          </>
+                        )}
+                        {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
+                      </button>
 
-                    {expanded && (
-                      <div className="px-3 pb-2.5 pt-0.5 grid grid-cols-3 gap-1.5">
-                        {displaySets.map((s) => (
-                          <div key={s.id} className="rounded bg-bg/40 px-2 py-1.5 text-center">
-                            <p className="text-[9px] tracked uppercase text-muted">เซ็ต {s.set_number}</p>
-                            <p className="text-[11px] font-mono text-ink mt-0.5">
-                              {s.reps ?? '—'} × {s.weight_kg !== null ? format(s.weight_kg) : '—'}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                      {expanded && (
+                        <div className="px-3 pb-2.5 pt-0.5 grid grid-cols-3 gap-1.5">
+                          {displaySets.map((s) => (
+                            <div key={s.id} className="rounded bg-bg/40 px-2 py-1.5 text-center">
+                              <p className="text-[9px] tracked uppercase text-muted">เซ็ต {s.set_number}</p>
+                              <p className="text-[11px] font-mono text-ink mt-0.5">
+                                {s.reps ?? '—'} × {s.weight_kg !== null ? format(s.weight_kg) : '—'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 )
               })}
