@@ -18,6 +18,8 @@ export interface Workout {
   duration_min: number | null
   // ชีพจรเฉลี่ยระหว่างเซสชัน (bpm) — กรอกเองหรือได้จากการนำเข้ารูปหน้าจอ ใช้ประมาณ HR zone รายสัปดาห์
   avg_heart_rate: number | null
+  // อัตราก้าว/รอบขาเฉลี่ยระหว่างเซสชัน — หน่วยขึ้นกับ cardio_type (spm วิ่ง/เดิน, rpm ปั่นจักรยาน) ดู lib/cadence.ts
+  cadence: number | null
   // แคลอรี่จริงจากอุปกรณ์ (กรอกเองหรือนำเข้าจากรูป) ถ้ามีจะใช้แทนค่าประมาณจากสูตร MET
   calories_kcal: number | null
   notes: string | null
@@ -45,6 +47,8 @@ export interface Profile {
   // ชีพจรสูงสุดโดยประมาณ (bpm) — ผู้ใช้กรอกเอง ใช้คำนวณ Heart Rate Zone ใน Weekly Cardio Volume
   // ถ้ายังไม่ตั้ง ระบบ fallback ไปใช้ค่าประมาณมาตรฐาน (ดู lib/heartRate.ts)
   max_heart_rate: number | null
+  // ชีพจรขณะพัก (bpm) — ผู้ใช้กรอกเอง ใช้คู่กับ max_heart_rate ประมาณ VO2Max (สูตร Uth) ดู lib/vo2max.ts
+  resting_heart_rate: number | null
   updated_at: string
 }
 

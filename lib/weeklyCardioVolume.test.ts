@@ -20,6 +20,7 @@ function makeCardio(overrides: Partial<Workout>): Workout {
     distance_km: null,
     duration_min: null,
     avg_heart_rate: null,
+    cadence: null,
     calories_kcal: null,
     notes: null,
     created_at: '2026-07-18T10:00:00Z',
@@ -72,5 +73,23 @@ describe('computeWeeklyCardioVolume', () => {
     expect(result.hrZones.sessionsWithHR).toBe(1)
     expect(result.hrZones.totalCardioSessions).toBe(2)
     expect(result.hrZones.minutesByZone.z1).toBe(30)
+  })
+
+  it('averages cadence separately for spm (run/walk) vs rpm (cycling) sessions', () => {
+    const workouts = [
+      makeCardio({ cardio_type: 'วิ่ง', cadence: 170 }),
+      makeCardio({ cardio_type: 'วิ่ง', cadence: 180 }),
+      makeCardio({ cardio_type: 'ปั่นจักรยาน', cadence: 90 }),
+    ]
+    const result = computeWeeklyCardioVolume(workouts, 70, 190)
+    expect(result.avgCadenceSpm).toBe(175)
+    expect(result.avgCadenceRpm).toBe(90)
+  })
+
+  it('returns null cadence averages when no sessions have cadence data', () => {
+    const workouts = [makeCardio({ cardio_type: 'วิ่ง', cadence: null })]
+    const result = computeWeeklyCardioVolume(workouts, 70, 190)
+    expect(result.avgCadenceSpm).toBeNull()
+    expect(result.avgCadenceRpm).toBeNull()
   })
 })

@@ -18,6 +18,7 @@ function makeWorkout(overrides: Partial<Workout>): Workout {
     distance_km: null,
     duration_min: null,
     avg_heart_rate: null,
+    cadence: null,
     calories_kcal: null,
     notes: null,
     created_at: '2026-07-01T10:00:00Z',
