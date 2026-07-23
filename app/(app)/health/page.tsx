@@ -128,6 +128,27 @@ export default function HealthPage() {
       .map((m) => ({ label: shortLabel(m.measured_at), value: m.waist_cm as number }))
   }, [metrics])
 
+  const chestTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.chest_cm !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: m.chest_cm as number }))
+  }, [metrics])
+
+  const armTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.arm_cm !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: m.arm_cm as number }))
+  }, [metrics])
+
+  const thighTrend = useMemo(() => {
+    return [...metrics]
+      .filter((m) => m.thigh_cm !== null)
+      .reverse()
+      .map((m) => ({ label: shortLabel(m.measured_at), value: m.thigh_cm as number }))
+  }, [metrics])
+
   if (loading) {
     return <LoadingState />
   }
@@ -168,6 +189,8 @@ export default function HealthPage() {
             <MiniStat label="BMI" value={bmi} unit={bmi !== null ? bmiCategory(bmi) : undefined} decimals={1} />
             <MiniStat label="Body Fat" value={latest?.body_fat_pct} unit="%" />
             <MiniStat label="Muscle Mass" value={latest?.muscle_kg != null ? toDisplay(latest.muscle_kg) : null} unit={unit} />
+            <MiniStat label="ต้นแขนล่าสุด" value={latest?.arm_cm} unit="ซม." />
+            <MiniStat label="ต้นขาล่าสุด" value={latest?.thigh_cm} unit="ซม." />
           </div>
 
           <HeightSetting profile={profile} onSaved={(p) => setProfile(p)} />
@@ -183,6 +206,15 @@ export default function HealthPage() {
           )}
           {waistTrend.length > 1 && (
             <MetricTrendChart title="แนวโน้มรอบเอว" data={waistTrend} color="#6C8CA8" unit="ซม." />
+          )}
+          {chestTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มรอบอก" data={chestTrend} color="#A87F5F" unit="ซม." />
+          )}
+          {armTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มรอบต้นแขน" data={armTrend} color="#8C6CA8" unit="ซม." />
+          )}
+          {thighTrend.length > 1 && (
+            <MetricTrendChart title="แนวโน้มรอบต้นขา" data={thighTrend} color="#5F8FA8" unit="ซม." />
           )}
 
           <MetricForm onSaved={(m) => setMetrics((prev) => [m, ...prev.filter((x) => x.id !== m.id)])} />
@@ -223,6 +255,8 @@ export default function HealthPage() {
                       {m.waist_cm !== null && <span>เอว {m.waist_cm} ซม.</span>}
                       {m.chest_cm !== null && <span>อก {m.chest_cm} ซม.</span>}
                       {m.hip_cm !== null && <span>สะโพก {m.hip_cm} ซม.</span>}
+                      {m.arm_cm !== null && <span>ต้นแขน {m.arm_cm} ซม.</span>}
+                      {m.thigh_cm !== null && <span>ต้นขา {m.thigh_cm} ซม.</span>}
                     </p>
                   </li>
                 ))}
@@ -350,6 +384,8 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   const [waist, setWaist] = useState('')
   const [chest, setChest] = useState('')
   const [hip, setHip] = useState('')
+  const [arm, setArm] = useState('')
+  const [thigh, setThigh] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -373,6 +409,8 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
       waist_cm: waist ? Number(waist) : null,
       chest_cm: chest ? Number(chest) : null,
       hip_cm: hip ? Number(hip) : null,
+      arm_cm: arm ? Number(arm) : null,
+      thigh_cm: thigh ? Number(thigh) : null,
     }
     const { data, error } = await supabase.from('body_metrics').insert(payload).select().single()
     setSaving(false)
@@ -387,6 +425,8 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
     setWaist('')
     setChest('')
     setHip('')
+    setArm('')
+    setThigh('')
   }
 
   return (
@@ -407,6 +447,8 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
         <LabeledInput label="เอว (ซม.)" value={waist} onChange={setWaist} />
         <LabeledInput label="อก (ซม.)" value={chest} onChange={setChest} />
         <LabeledInput label="สะโพก (ซม.)" value={hip} onChange={setHip} />
+        <LabeledInput label="ต้นแขน (ซม.)" value={arm} onChange={setArm} />
+        <LabeledInput label="ต้นขา (ซม.)" value={thigh} onChange={setThigh} />
       </div>
       {error && <p className="text-sm text-rusttext">{error}</p>}
       <button
