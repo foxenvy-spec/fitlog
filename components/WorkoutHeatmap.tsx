@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { todayStr } from '@/lib/weekdays'
 import { useWeightUnit } from './WeightUnitProvider'
-import type { Workout } from '@/lib/types'
+import type { Workout, WorkoutSet } from '@/lib/types'
 import Skeleton from './Skeleton'
 
 // จ อ พ พฤ ศ ส อา — เริ่มจันทร์ ให้ตรงกับลำดับคอลัมน์ของกริด (Monday-first)
@@ -58,14 +58,32 @@ export default function WorkoutHeatmap() {
         counts[r.performed_at] = (counts[r.performed_at] ?? 0) + 1
         ;(byDate[r.performed_at] ??= []).push(r)
       })
-      return { counts, byDate }
+
+      // ดึงรายละเอียดทีละเซ็ต (reps/น้ำหนักต่อเซ็ต) ของทุกท่าเวทในเดือนนี้มาในทีเดียว
+      // กันไม่ให้ต้องยิง query แยกทุกครั้งที่กดดูแต่ละท่า
+      const strengthIds = rows.filter((r) => r.type === 'strength').map((r) => r.id)
+      const setsByWorkoutId: Record<string, WorkoutSet[]> = {}
+      if (strengthIds.length > 0) {
+        const { data: setRows } = await supabase
+          .from('workout_sets')
+          .select('*')
+          .in('workout_id', strengthIds)
+          .order('set_number')
+        ;((setRows as WorkoutSet[]) ?? []).forEach((s) => {
+          ;(setsByWorkoutId[s.workout_id] ??= []).push(s)
+        })
+      }
+
+      return { counts, byDate, setsByWorkoutId }
     },
     // เก็บ cache ของเดือนที่เคยดูไว้ ไม่ต้องยิง query ซ้ำเวลาเลื่อนกลับไปกลับมา
     staleTime: 60_000,
   })
   const countByDate = data?.counts ?? {}
   const byDate = data?.byDate ?? {}
+  const setsByWorkoutId = data?.setsByWorkoutId ?? {}
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const { format } = useWeightUnit()
 
   const weeks = useMemo(() => {
@@ -93,6 +111,7 @@ export default function WorkoutHeatmap() {
   function shiftMonth(delta: number) {
     setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
     setSelectedDate(null)
+    setExpandedId(null)
   }
 
   return (
@@ -155,7 +174,10 @@ export default function WorkoutHeatmap() {
                       key={di}
                       type="button"
                       disabled={!clickable}
-                      onClick={() => setSelectedDate(iso === selectedDate ? null : iso)}
+                      onClick={() => {
+                        setSelectedDate(iso === selectedDate ? null : iso)
+                        setExpandedId(null)
+                      }}
                       title={`${date.getDate()} ${monthLabel}${entryCount ? ` · ${entryCount} รายการ` : ''}`}
                       className={`aspect-square rounded-[4px] flex items-center justify-center text-[9px] font-mono transition ${
                         isFuture ? 'border border-dashed border-line text-muted/50' : 'text-bg'
@@ -204,30 +226,56 @@ export default function WorkoutHeatmap() {
               </button>
             </div>
             <ul className="space-y-2">
-              {(byDate[selectedDate] ?? []).map((w) => (
-                <li key={w.id} className="rounded-md bg-surface2 px-3 py-2 text-xs">
-                  {w.type === 'strength' ? (
-                    <>
-                      <span className="text-steel font-display tracked uppercase text-[10px] mr-2">STR</span>
-                      <span className="text-ink">{w.exercise_name ?? '—'}</span>
-                      <span className="text-muted">
-                        {' '}
-                        — {w.sets}×{w.reps} @ {format(w.weight_kg)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-rusttext font-display tracked uppercase text-[10px] mr-2">CAR</span>
-                      <span className="text-ink">{w.cardio_type}</span>
-                      <span className="text-muted">
-                        {' '}
-                        — {w.distance_km}km / {w.duration_min}min
-                      </span>
-                    </>
-                  )}
-                  {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
-                </li>
-              ))}
+              {(byDate[selectedDate] ?? []).map((w) => {
+                const sets = setsByWorkoutId[w.id] ?? []
+                const hasSets = w.type === 'strength' && sets.length > 0
+                const expanded = expandedId === w.id
+                return (
+                  <li key={w.id} className="rounded-md bg-surface2 overflow-hidden">
+                    <button
+                      type="button"
+                      disabled={!hasSets}
+                      onClick={() => setExpandedId(expanded ? null : w.id)}
+                      className={`w-full text-left px-3 py-2 text-xs ${hasSets ? 'cursor-pointer hover:bg-surface2/60' : 'cursor-default'}`}
+                    >
+                      {w.type === 'strength' ? (
+                        <>
+                          <span className="text-steel font-display tracked uppercase text-[10px] mr-2">STR</span>
+                          <span className="text-ink">{w.exercise_name ?? '—'}</span>
+                          <span className="text-muted">
+                            {' '}
+                            — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                          </span>
+                          {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-rusttext font-display tracked uppercase text-[10px] mr-2">CAR</span>
+                          <span className="text-ink">{w.cardio_type}</span>
+                          <span className="text-muted">
+                            {' '}
+                            — {w.distance_km}km / {w.duration_min}min
+                          </span>
+                        </>
+                      )}
+                      {w.notes && <p className="text-muted mt-0.5">{w.notes}</p>}
+                    </button>
+
+                    {expanded && (
+                      <div className="px-3 pb-2.5 pt-0.5 grid grid-cols-3 gap-1.5">
+                        {sets.map((s) => (
+                          <div key={s.id} className="rounded bg-bg/40 px-2 py-1.5 text-center">
+                            <p className="text-[9px] tracked uppercase text-muted">เซ็ต {s.set_number}</p>
+                            <p className="text-[11px] font-mono text-ink mt-0.5">
+                              {s.reps ?? '—'} × {s.weight_kg !== null ? format(s.weight_kg) : '—'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         )}
