@@ -53,6 +53,9 @@ import Skeleton from '@/components/Skeleton'
 const WorkoutHeatmap = dynamic(() => import('@/components/WorkoutHeatmap'), {
   loading: () => <Skeleton className="h-56 w-full rounded-lg" />,
 })
+const WeeklyMuscleHeatmap = dynamic(() => import('@/components/WeeklyMuscleHeatmap'), {
+  loading: () => <Skeleton className="h-80 w-full rounded-lg" />,
+})
 const WeeklyVolume = dynamic(() => import('@/components/WeeklyVolume'), {
   loading: () => <Skeleton className="h-56 w-full rounded-lg" />,
 })
@@ -704,6 +707,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <WeeklyMuscleHeatmap />
       <WeeklyVolume />
       <WeeklyCardioVolume />
 
