@@ -24,9 +24,14 @@ import {
   computeWorkoutMotivationLabel,
   getScheduledMuscleForDay,
   getNextScheduledMuscle,
+  computeLatestPR,
+  computeTopMuscleThisWeek,
+  relativeDayLabel,
   type Insight,
   type MuscleRecommendation,
   type VolumeIncrease,
+  type LatestPR,
+  type TopMuscle,
 } from '@/lib/dashboardStats'
 import { fetchWeeklyVolumeTargets } from '@/lib/weeklyVolumeTargets'
 import { saveDisplayName } from '@/lib/profile'
@@ -92,6 +97,10 @@ interface DashboardData {
   // (เป้าหมายนับจากจำนวนวันที่ตั้งโปรแกรมไว้เอง ถ้ายังไม่ตั้งเลยใช้ 3 เป็นค่าเริ่มต้น)
   thisWeekWorkoutDays: number
   weeklyWorkoutGoal: number
+  // สองตัวนี้ตอบคำถาม "PR ล่าสุด" และ "กล้ามเนื้อที่ฝึกมากที่สุดสัปดาห์นี้" — โชว์เป็น quick-glance
+  // strip ใต้คำทักทาย ให้เห็นครบภายในไม่กี่วินาทีโดยไม่ต้องเลื่อนหรือกดเข้าไปดูหน้าอื่น
+  latestPR: LatestPR | null
+  topMuscleThisWeek: TopMuscle | null
 }
 
 async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Promise<DashboardData> {
@@ -129,7 +138,7 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Pr
     supabase.from('program_days').select('*').order('day_of_week'),
     supabase
       .from('workouts')
-      .select('muscle_group, performed_at, exercise_name, type')
+      .select('muscle_group, performed_at, exercise_name, type, weight_kg')
       .eq('type', 'strength')
       .order('performed_at', { ascending: false })
       .limit(1000),
@@ -155,12 +164,18 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Pr
   const typedDays = (dayRows as ProgramDay[]) ?? []
 
   const strengthRows =
-    (recentStrength as { muscle_group: string | null; performed_at: string; exercise_name: string | null }[]) ?? []
+    (recentStrength as {
+      muscle_group: string | null
+      performed_at: string
+      exercise_name: string | null
+      weight_kg: number | null
+    }[]) ?? []
   const recoveryDates: Record<string, string | null> = {}
   RECOVERY_MUSCLES.forEach((mg) => {
     const match = strengthRows.find((r) => r.muscle_group === mg)
     recoveryDates[mg] = match?.performed_at ?? null
   })
+  const latestPR = computeLatestPR(strengthRows)
 
   const twoWeeksRows =
     (twoWeeksStrength as { muscle_group: string | null; sets: number | null; performed_at: string }[]) ?? []
@@ -190,6 +205,7 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Pr
   })
   const pushPullBalance = computePushPullBalance(thisWeekSets)
   const bestVolumeIncrease = computeBestVolumeIncrease(thisWeekSets, lastWeekSets)
+  const topMuscleThisWeek = computeTopMuscleThisWeek(thisWeekSets)
 
   // จำนวนครั้งที่ฝึกแล้วสัปดาห์นี้ (นับวันที่ต่างกัน ไม่ใช่จำนวนแถว) — ใช้ distinctDates ที่ดึงมาแล้ว
   // สำหรับคำนวณ streak ด้านบน (ย้อนหลัง 400 วัน ครอบคลุมสัปดาห์นี้แน่นอน) ไม่ต้อง query ซ้ำ
@@ -258,6 +274,8 @@ async function fetchDashboardData(supabase: ReturnType<typeof createClient>): Pr
     bestVolumeIncrease,
     thisWeekWorkoutDays,
     weeklyWorkoutGoal,
+    latestPR,
+    topMuscleThisWeek,
   }
 }
 
@@ -380,6 +398,45 @@ export default function DashboardPage() {
           ⚙️
         </button>
       </div>
+
+      {/* quick-glance strip: answers "PR ล่าสุด" and "กล้ามเนื้อที่ฝึกมากที่สุดสัปดาห์นี้" —
+          the two questions nothing else on this screen answers directly. "วันนี้เล่นไหม" and
+          "เป้าหมายใกล้ถึงหรือยัง" are already the hero card / goal ring below, and "สัปดาห์นี้กี่ครั้ง"
+          is in the Weekly Goal card — this strip fills the remaining gaps without duplicating them. */}
+      {(data.latestPR || data.topMuscleThisWeek) && (
+        <div
+          className="lg:col-span-2 grid grid-cols-2 gap-2 px-1 animate-rise"
+          style={{ animationDelay: '30ms' }}
+        >
+          <div className="rounded-lg bg-surface2/40 border border-line/60 px-3 py-2.5">
+            <p className="text-[9px] tracked uppercase text-muted">🏆 PR ล่าสุด</p>
+            {data.latestPR ? (
+              <>
+                <p className="text-sm text-ink truncate mt-0.5">{data.latestPR.exerciseName}</p>
+                <p className="text-[11px] text-violet mt-0.5">
+                  <span className="font-mono font-semibold">{data.latestPR.weightKg}kg</span>{' '}
+                  <span className="text-muted">· {relativeDayLabel(data.latestPR.performedAt)}</span>
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-muted mt-1.5">ยังไม่มี PR — ลุยเลย</p>
+            )}
+          </div>
+          <div className="rounded-lg bg-surface2/40 border border-line/60 px-3 py-2.5">
+            <p className="text-[9px] tracked uppercase text-muted">💪 ฝึกมากสุดสัปดาห์นี้</p>
+            {data.topMuscleThisWeek ? (
+              <>
+                <p className="text-sm text-ink truncate mt-0.5">{data.topMuscleThisWeek.muscleGroup}</p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  <span className="font-mono text-ink">{data.topMuscleThisWeek.sets}</span> Sets
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-muted mt-1.5">ยังไม่ได้บันทึกสัปดาห์นี้</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* left column (lg+): today's workout, quick start, muscle heatmap */}
       <div className="space-y-6">
