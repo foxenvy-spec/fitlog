@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { todayStr } from '@/lib/weekdays'
 import { useWeightUnit } from './WeightUnitProvider'
 import type { Workout, WorkoutSet } from '@/lib/types'
+import { computeDaySummary, computeExerciseProgress, formatDuration } from '@/lib/workoutDisplay'
+import ExerciseProgressBadge from './ExerciseProgressBadge'
 import Skeleton from './Skeleton'
 
 // จ อ พ พฤ ศ ส อา — เริ่มจันทร์ ให้ตรงกับลำดับคอลัมน์ของกริด (Monday-first)
@@ -82,9 +84,27 @@ export default function WorkoutHeatmap() {
   const countByDate = data?.counts ?? {}
   const byDate = data?.byDate ?? {}
   const setsByWorkoutId = data?.setsByWorkoutId ?? {}
+
+  // ประวัติย้อนหลังกว้างกว่าหนึ่งเดือน — ใช้เทียบ PR/best volume/แนวโน้มของแต่ละท่า ไม่ผูกกับเดือนที่กำลังดูอยู่
+  // (โหลดครั้งเดียว cache ไว้นาน ไม่ต้องยิงซ้ำทุกครั้งที่เปลี่ยนเดือนหรือเปิดดูวันใหม่)
+  const { data: historyData } = useQuery({
+    queryKey: ['workout-progress-history'],
+    queryFn: async () => {
+      const since = new Date()
+      since.setDate(since.getDate() - 365)
+      const { data } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('type', 'strength')
+        .gte('performed_at', toIso(since))
+      return (data as Workout[]) ?? []
+    },
+    staleTime: 5 * 60_000,
+  })
+  const progressHistory = historyData ?? []
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const { format } = useWeightUnit()
+  const { unit, toDisplay, format } = useWeightUnit()
 
   const weeks = useMemo(() => {
     const leadingBlanks = (monthStart.getDay() + 6) % 7 // Monday-first
@@ -226,6 +246,23 @@ export default function WorkoutHeatmap() {
               </button>
             </div>
             <ul className="space-y-2">
+              {(() => {
+                const dayWorkouts = byDate[selectedDate] ?? []
+                const summary = computeDaySummary(dayWorkouts)
+                return (
+                  <div className="rounded-md bg-surface2 px-3 py-2.5 space-y-1 text-xs">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ink">
+                      <span>🏋️ {summary.exerciseCount} Exercises</span>
+                      {summary.totalSets > 0 && <span>🔥 {summary.totalSets} Sets</span>}
+                      {summary.durationMin !== null && <span>⏱ {formatDuration(summary.durationMin)}</span>}
+                    </div>
+                    {summary.totalVolumeKg > 0 && (
+                      <p className="text-ink">🏋️ Volume {Math.round(toDisplay(summary.totalVolumeKg)).toLocaleString()} {unit}</p>
+                    )}
+                    {summary.muscleGroups.length > 0 && <p className="text-muted">💪 {summary.muscleGroups.join(' / ')}</p>}
+                  </div>
+                )
+              })()}
               {(byDate[selectedDate] ?? []).map((w) => {
                 const realSets = setsByWorkoutId[w.id] ?? []
                 // session/program flow เก็บ reps/น้ำหนักเป็นค่าเดียวต่อท่า ไม่มี workout_sets จริง —
@@ -253,18 +290,21 @@ export default function WorkoutHeatmap() {
                       className={`w-full text-left px-3 py-2 text-xs ${hasSets ? 'cursor-pointer hover:bg-surface2/60' : 'cursor-default'}`}
                     >
                       {w.type === 'strength' ? (
-                        <>
-                          <span className="text-steel font-display tracked uppercase text-[10px] mr-2">STR</span>
-                          <span className="text-ink">{w.exercise_name ?? '—'}</span>
-                          <span className="text-muted">
-                            {' '}
-                            — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0">
+                            <span className="mr-1.5">🏋️</span>
+                            <span className="text-ink">{w.exercise_name ?? '—'}</span>
+                            <span className="text-muted">
+                              {' '}
+                              — {w.sets}×{w.reps} @ {format(w.weight_kg)}
+                            </span>
+                            {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
                           </span>
-                          {hasSets && <span className="text-muted ml-1">{expanded ? '▲' : '▼'}</span>}
-                        </>
+                          <ExerciseProgressBadge progress={computeExerciseProgress(w, progressHistory)} format={format} />
+                        </div>
                       ) : (
                         <>
-                          <span className="text-rusttext font-display tracked uppercase text-[10px] mr-2">CAR</span>
+                          <span className="mr-1.5">🏃</span>
                           <span className="text-ink">{w.cardio_type}</span>
                           <span className="text-muted">
                             {' '}
