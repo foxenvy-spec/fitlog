@@ -729,7 +729,7 @@ export default function SessionPage() {
                 >
                   <span>เซ็ต {i + 1}</span>
                   <span className="text-ink">
-                    {format(toDisplay(s.weightKg))} {unit} × {s.reps} reps
+                    {format(s.weightKg)} × {s.reps} reps
                   </span>
                 </li>
               ))}
