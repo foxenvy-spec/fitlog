@@ -316,6 +316,12 @@ export default function HealthPage() {
   const muscleRangeHigh = latestNonNull('muscle_range_high')
   const bodyAgeRangeLow = latestNonNull('body_age_range_low')
   const bodyAgeRangeHigh = latestNonNull('body_age_range_high')
+  const bodyWaterRangeLow = latestNonNull('body_water_range_low')
+  const bodyWaterRangeHigh = latestNonNull('body_water_range_high')
+  const saltRangeLow = latestNonNull('inorganic_salt_range_low')
+  const saltRangeHigh = latestNonNull('inorganic_salt_range_high')
+  const proteinRangeLow = latestNonNull('protein_range_low')
+  const proteinRangeHigh = latestNonNull('protein_range_high')
 
   const compTrends: TrendDef[] = useMemo(
     () => [
@@ -368,9 +374,45 @@ export default function HealthPage() {
             ? { low: toDisplay(fatMassRangeLow), high: toDisplay(fatMassRangeHigh), min: toDisplay(fatMassRangeLow) * 0.6, max: toDisplay(fatMassRangeHigh) * 1.4 }
             : undefined,
       },
-      { key: 'bodyWater', label: 'น้ำในร่างกาย', color: '#3D8FE8', unit, data: bodyWaterTrend, iconKey: 'water' },
-      { key: 'salt', label: 'เกลือแร่', color: '#A89F5F', unit, data: inorganicSaltTrend, iconKey: 'salt' },
-      { key: 'protein', label: 'โปรตีน', color: '#5FA8A0', unit, data: proteinTrend, iconKey: 'protein' },
+      {
+        key: 'bodyWater',
+        label: 'น้ำในร่างกาย',
+        color: '#3D8FE8',
+        unit,
+        data: bodyWaterTrend,
+        iconKey: 'water',
+        direction: 'neutral',
+        range:
+          bodyWaterRangeLow !== null && bodyWaterRangeHigh !== null
+            ? { low: toDisplay(bodyWaterRangeLow), high: toDisplay(bodyWaterRangeHigh), min: toDisplay(bodyWaterRangeLow) * 0.85, max: toDisplay(bodyWaterRangeHigh) * 1.15 }
+            : undefined,
+      },
+      {
+        key: 'salt',
+        label: 'เกลือแร่',
+        color: '#A89F5F',
+        unit,
+        data: inorganicSaltTrend,
+        iconKey: 'salt',
+        direction: 'neutral',
+        range:
+          saltRangeLow !== null && saltRangeHigh !== null
+            ? { low: toDisplay(saltRangeLow), high: toDisplay(saltRangeHigh), min: toDisplay(saltRangeLow) * 0.85, max: toDisplay(saltRangeHigh) * 1.15 }
+            : undefined,
+      },
+      {
+        key: 'protein',
+        label: 'โปรตีน',
+        color: '#5FA8A0',
+        unit,
+        data: proteinTrend,
+        iconKey: 'protein',
+        direction: 'neutral',
+        range:
+          proteinRangeLow !== null && proteinRangeHigh !== null
+            ? { low: toDisplay(proteinRangeLow), high: toDisplay(proteinRangeHigh), min: toDisplay(proteinRangeLow) * 0.85, max: toDisplay(proteinRangeHigh) * 1.15 }
+            : undefined,
+      },
       {
         key: 'skeletalMuscle',
         label: 'กล้ามเนื้อโครงร่าง',
@@ -455,6 +497,12 @@ export default function HealthPage() {
       muscleRangeHigh,
       bodyAgeRangeLow,
       bodyAgeRangeHigh,
+      bodyWaterRangeLow,
+      bodyWaterRangeHigh,
+      saltRangeLow,
+      saltRangeHigh,
+      proteinRangeLow,
+      proteinRangeHigh,
     ]
   )
 
@@ -498,6 +546,15 @@ export default function HealthPage() {
     if (latest?.body_age_years != null && bodyAgeRangeLow !== null && bodyAgeRangeHigh !== null) {
       items.push({ label: 'อายุร่างกาย', status: classifyMetric(zoneOf(latest.body_age_years, bodyAgeRangeLow, bodyAgeRangeHigh), 'lowerBetter') })
     }
+    if (latest?.body_water_kg != null && bodyWaterRangeLow !== null && bodyWaterRangeHigh !== null) {
+      items.push({ label: 'น้ำในร่างกาย', status: classifyMetric(zoneOf(latest.body_water_kg, bodyWaterRangeLow, bodyWaterRangeHigh), 'neutral') })
+    }
+    if (latest?.inorganic_salt_kg != null && saltRangeLow !== null && saltRangeHigh !== null) {
+      items.push({ label: 'เกลือแร่', status: classifyMetric(zoneOf(latest.inorganic_salt_kg, saltRangeLow, saltRangeHigh), 'neutral') })
+    }
+    if (latest?.protein_kg != null && proteinRangeLow !== null && proteinRangeHigh !== null) {
+      items.push({ label: 'โปรตีน', status: classifyMetric(zoneOf(latest.protein_kg, proteinRangeLow, proteinRangeHigh), 'neutral') })
+    }
     return items
   }, [
     latest,
@@ -512,6 +569,12 @@ export default function HealthPage() {
     muscleRangeHigh,
     bodyAgeRangeLow,
     bodyAgeRangeHigh,
+    bodyWaterRangeLow,
+    bodyWaterRangeHigh,
+    saltRangeLow,
+    saltRangeHigh,
+    proteinRangeLow,
+    proteinRangeHigh,
   ])
 
   const healthScore = useMemo(() => summarizeHealthScore(healthScoreItems), [healthScoreItems])
@@ -1068,60 +1131,62 @@ function MetricRowCard({ trend, periodLabel }: { trend: TrendDef; periodLabel: s
     <section className="bg-surface border border-line shadow-elevated rounded-lg p-4">
       <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,150px)_1fr_minmax(0,170px)] gap-3 sm:gap-4 sm:items-center">
         {/* คอลัมน์ซ้าย: ไอคอน + ชื่อตัวชี้วัด (อยู่ข้างหน้า) + ค่าปัจจุบัน + badge */}
-        <div className="flex items-start justify-between gap-2 sm:block">
-          <div className="flex items-start gap-2 min-w-0">
-            <span
-              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center"
-              style={{ background: `${trend.color}26`, color: trend.color }}
-            >
-              <Icon />
+        <div className="flex items-start gap-2 min-w-0">
+          <span
+            className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center"
+            style={{ background: `${trend.color}26`, color: trend.color }}
+          >
+            <Icon />
+          </span>
+          <div className="min-w-0">
+            <span className="block font-display text-xs tracked uppercase text-ink truncate">{trend.label}</span>
+            <span className="font-mono text-lg tabular text-ink whitespace-nowrap">
+              {latestVal !== null ? latestVal.toFixed(dec) : '—'}
+              <span className="text-xs text-muted ml-1">{trend.unit}</span>
             </span>
-            <div className="min-w-0">
-              <span className="block font-display text-xs tracked uppercase text-ink truncate">{trend.label}</span>
-              <span className="font-mono text-lg tabular text-ink whitespace-nowrap">
-                {latestVal !== null ? latestVal.toFixed(dec) : '—'}
-                <span className="text-xs text-muted ml-1">{trend.unit}</span>
-              </span>
-              {zone && (
-                <div className="mt-1">
-                  <ZoneBadge zone={zone} />
-                </div>
-              )}
-            </div>
+            {zone && (
+              <div className="mt-1">
+                <ZoneBadge zone={zone} />
+              </div>
+            )}
           </div>
-          {delta !== null && (
-            <span
-              className={`text-[11px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
-                deltaGood ? 'bg-mossdim text-moss' : 'bg-rustdim text-rusttext'
-              }`}
-            >
-              {delta > 0 ? '+' : ''}
-              {delta.toFixed(dec)} {trend.unit}
-            </span>
-          )}
         </div>
 
-        {/* คอลัมน์กลาง: กราฟเส้น */}
-        {data.length > 1 ? (
-          <div className="h-24">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#2E333A" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={{ stroke: '#2E333A' }} tickLine={false} />
-                <YAxis tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={false} tickLine={false} width={26} domain={['auto', 'auto']} />
-                <Tooltip
-                  contentStyle={{ background: '#1C1F24', border: '1px solid #2E333A', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: '#9498A0' }}
-                  itemStyle={{ color: '#F3F0E8' }}
-                  formatter={(v: number) => [`${v} ${trend.unit}`, trend.label]}
-                />
-                <Line type="monotone" dataKey="value" stroke={trend.color} strokeWidth={2} dot={{ r: 2, fill: trend.color }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <p className="text-[11px] text-muted py-6 text-center">ยังไม่มีข้อมูลพอในช่วง{periodLabel} — บันทึกอย่างน้อย 2 ครั้ง</p>
-        )}
+        {/* คอลัมน์กลาง: badge เปลี่ยนแปลง (ชิดขวา เหนือปลายกราฟ) + กราฟเส้น */}
+        <div>
+          {delta !== null && (
+            <div className="flex justify-end mb-1">
+              <span
+                className={`text-[11px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
+                  deltaGood ? 'bg-mossdim text-moss' : 'bg-rustdim text-rusttext'
+                }`}
+              >
+                {delta > 0 ? '+' : ''}
+                {delta.toFixed(dec)} {trend.unit}
+              </span>
+            </div>
+          )}
+          {data.length > 1 ? (
+            <div className="h-24">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke="#2E333A" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={{ stroke: '#2E333A' }} tickLine={false} />
+                  <YAxis tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={false} tickLine={false} width={26} domain={['auto', 'auto']} />
+                  <Tooltip
+                    contentStyle={{ background: '#1C1F24', border: '1px solid #2E333A', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: '#9498A0' }}
+                    itemStyle={{ color: '#F3F0E8' }}
+                    formatter={(v: number) => [`${v} ${trend.unit}`, trend.label]}
+                  />
+                  <Line type="monotone" dataKey="value" stroke={trend.color} strokeWidth={2} dot={{ r: 2, fill: trend.color }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted py-6 text-center">ยังไม่มีข้อมูลพอในช่วง{periodLabel} — บันทึกอย่างน้อย 2 ครั้ง</p>
+          )}
+        </div>
 
         {/* คอลัมน์ขวา: แถบ Low/Standard/High */}
         {trend.range ? (
@@ -1553,6 +1618,12 @@ function MetricForm({
   const [bodyAge, setBodyAge] = useState('')
   const [bodyAgeRangeLow, setBodyAgeRangeLow] = useState('')
   const [bodyAgeRangeHigh, setBodyAgeRangeHigh] = useState('')
+  const [bodyWaterRangeLow, setBodyWaterRangeLow] = useState('')
+  const [bodyWaterRangeHigh, setBodyWaterRangeHigh] = useState('')
+  const [saltRangeLow, setSaltRangeLow] = useState('')
+  const [saltRangeHigh, setSaltRangeHigh] = useState('')
+  const [proteinRangeLow, setProteinRangeLow] = useState('')
+  const [proteinRangeHigh, setProteinRangeHigh] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [heightNote, setHeightNote] = useState<string | null>(null)
@@ -1654,6 +1725,12 @@ function MetricForm({
       body_age_years: bodyAge ? Number(bodyAge) : null,
       body_age_range_low: bodyAgeRangeLow ? Number(bodyAgeRangeLow) : null,
       body_age_range_high: bodyAgeRangeHigh ? Number(bodyAgeRangeHigh) : null,
+      body_water_range_low: bodyWaterRangeLow ? toKg(Number(bodyWaterRangeLow)) : null,
+      body_water_range_high: bodyWaterRangeHigh ? toKg(Number(bodyWaterRangeHigh)) : null,
+      inorganic_salt_range_low: saltRangeLow ? toKg(Number(saltRangeLow)) : null,
+      inorganic_salt_range_high: saltRangeHigh ? toKg(Number(saltRangeHigh)) : null,
+      protein_range_low: proteinRangeLow ? toKg(Number(proteinRangeLow)) : null,
+      protein_range_high: proteinRangeHigh ? toKg(Number(proteinRangeHigh)) : null,
     }
     const { data, error } = await supabase.from('body_metrics').insert(payload).select().single()
     setSaving(false)
@@ -1688,6 +1765,12 @@ function MetricForm({
     setBodyAge('')
     setBodyAgeRangeLow('')
     setBodyAgeRangeHigh('')
+    setBodyWaterRangeLow('')
+    setBodyWaterRangeHigh('')
+    setSaltRangeLow('')
+    setSaltRangeHigh('')
+    setProteinRangeLow('')
+    setProteinRangeHigh('')
   }
 
   return (
@@ -1748,6 +1831,12 @@ function MetricForm({
               <LabeledInput label={`มวลกล้ามเนื้อ สูงสุด (${unit})`} value={muscleRangeHigh} onChange={setMuscleRangeHigh} />
               <LabeledInput label="อายุร่างกาย ต่ำสุด (ปี)" value={bodyAgeRangeLow} onChange={setBodyAgeRangeLow} />
               <LabeledInput label="อายุร่างกาย สูงสุด (ปี)" value={bodyAgeRangeHigh} onChange={setBodyAgeRangeHigh} />
+              <LabeledInput label={`น้ำในร่างกาย ต่ำสุด (${unit})`} value={bodyWaterRangeLow} onChange={setBodyWaterRangeLow} />
+              <LabeledInput label={`น้ำในร่างกาย สูงสุด (${unit})`} value={bodyWaterRangeHigh} onChange={setBodyWaterRangeHigh} />
+              <LabeledInput label={`เกลือแร่ ต่ำสุด (${unit})`} value={saltRangeLow} onChange={setSaltRangeLow} />
+              <LabeledInput label={`เกลือแร่ สูงสุด (${unit})`} value={saltRangeHigh} onChange={setSaltRangeHigh} />
+              <LabeledInput label={`โปรตีน ต่ำสุด (${unit})`} value={proteinRangeLow} onChange={setProteinRangeLow} />
+              <LabeledInput label={`โปรตีน สูงสุด (${unit})`} value={proteinRangeHigh} onChange={setProteinRangeHigh} />
             </div>
           </div>
         )}
