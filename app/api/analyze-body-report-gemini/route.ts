@@ -55,6 +55,9 @@ const RESPONSE_SCHEMA = {
     inorganic_salt_range_high: { type: 'NUMBER', nullable: true },
     protein_range_low: { type: 'NUMBER', nullable: true },
     protein_range_high: { type: 'NUMBER', nullable: true },
+    bone_mass_kg: { type: 'NUMBER', nullable: true },
+    bone_mass_range_low: { type: 'NUMBER', nullable: true },
+    bone_mass_range_high: { type: 'NUMBER', nullable: true },
   },
   required: [
     'measured_at',
@@ -86,6 +89,9 @@ const RESPONSE_SCHEMA = {
     'inorganic_salt_range_high',
     'protein_range_low',
     'protein_range_high',
+    'bone_mass_kg',
+    'bone_mass_range_low',
+    'bone_mass_range_high',
   ],
 }
 
@@ -119,6 +125,9 @@ interface ExtractedBodyReport {
   inorganic_salt_range_high: number | null
   protein_range_low: number | null
   protein_range_high: number | null
+  bone_mass_kg: number | null
+  bone_mass_range_low: number | null
+  bone_mass_range_high: number | null
 }
 
 function coerceNumber(v: unknown): number | null {
@@ -166,6 +175,9 @@ function coerceResult(raw: unknown): ExtractedBodyReport {
     inorganic_salt_range_high: coerceNumber(obj.inorganic_salt_range_high),
     protein_range_low: coerceNumber(obj.protein_range_low),
     protein_range_high: coerceNumber(obj.protein_range_high),
+    bone_mass_kg: coerceNumber(obj.bone_mass_kg),
+    bone_mass_range_low: coerceNumber(obj.bone_mass_range_low),
+    bone_mass_range_high: coerceNumber(obj.bone_mass_range_high),
   }
 }
 
