@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import type { ProgramDay, Workout } from '@/lib/types'
-import { MUSCLE_GROUPS, VOLUME_MUSCLES } from '@/lib/muscle-groups'
+import { generateWorkoutForMuscle, toAdhocProgramExercises, type GeneratedWorkout } from '@/lib/workoutGenerator'
+import { GENERATED_SESSION_STORAGE_KEY, type StoredGeneratedSession } from '@/lib/generatedSession'
+import { MUSCLE_GROUPS, VOLUME_MUSCLES, type MuscleGroup } from '@/lib/muscle-groups'
 import { todayStr } from '@/lib/weekdays'
 import {
   computeRecoveryPct,
@@ -67,11 +70,16 @@ function topExerciseNames(rows: { exercise_name: string | null }[], limit: numbe
 
 export default function CoachPage() {
   const supabase = createClient()
+  const router = useRouter()
   const { format } = useWeightUnit()
   const { data: exercises = [] } = useExerciseLibrary()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<CoachData | null>(null)
+
+  // โปรแกรมที่สร้างแบบ rule-based (ปุ่ม "Generate Workout") — เก็บแยกจาก data เพราะเป็น action ของ
+  // ผู้ใช้เอง ไม่ใช่ค่าที่คำนวณตอนโหลดหน้า ผู้ใช้กด "สุ่มใหม่" ได้เรื่อยๆ ก่อนตัดสินใจกด Start Workout
+  const [generatedWorkout, setGeneratedWorkout] = useState<GeneratedWorkout | null>(null)
   // คำแนะนำเชิงลึกจาก Gemini — แยกจาก data.dailySummary (rule-based, คำนวณฟรีทันที) โดยตั้งใจ
   // เพราะเป็น opt-in (ผู้ใช้กดขอเอง ไม่เรียกอัตโนมัติ) กันชนโควต้าฟรีของ Gemini — ถ้าพังให้ตกกลับไป
   // ใช้ dailySummary เดิมเสมอ (ดู aiError ด้านล่าง ไม่แทนที่ dailySummary)
@@ -232,6 +240,7 @@ export default function CoachPage() {
   useEffect(() => {
     setAiMessage(null)
     setAiError(null)
+    setGeneratedWorkout(null)
   }, [data])
 
   async function requestAiInsight() {
@@ -273,6 +282,25 @@ export default function CoachPage() {
     }
   }
 
+  function handleGenerateWorkout() {
+    if (!data?.muscleRecommendation) return
+    const workout = generateWorkoutForMuscle(data.muscleRecommendation.muscleGroup as MuscleGroup, exercises)
+    setGeneratedWorkout(workout)
+  }
+
+  function handleStartGeneratedWorkout() {
+    if (!generatedWorkout) return
+    const stored: StoredGeneratedSession = {
+      muscleGroup: generatedWorkout.muscleGroup,
+      title: `เล่น${generatedWorkout.muscleGroup} (AI Coach)`,
+      createdAt: new Date().toISOString(),
+      exercises: toAdhocProgramExercises(generatedWorkout),
+    }
+    // sessionStorage เท่านั้น (ไม่เขียนลง DB) — /session อ่านค่านี้ตอนโหลดถ้า ?source=generated
+    sessionStorage.setItem(GENERATED_SESSION_STORAGE_KEY, JSON.stringify(stored))
+    router.push('/session?source=generated')
+  }
+
   return (
     <div className="space-y-5 lg:max-w-2xl lg:mx-auto">
       <div>
@@ -297,6 +325,51 @@ export default function CoachPage() {
               <span className="text-lg leading-none shrink-0">✨</span>
               <p className="text-sm text-ink whitespace-pre-line">{data.dailySummary}</p>
             </div>
+
+            {data.muscleRecommendation && (
+              <div className="border-t border-line pt-3 space-y-2.5">
+                {!generatedWorkout ? (
+                  <button
+                    type="button"
+                    onClick={handleGenerateWorkout}
+                    className="text-xs font-display tracked uppercase text-amber border border-amber/40 rounded-lg px-3 py-2 active:scale-[0.99] transition"
+                  >
+                    🏋️ สร้างโปรแกรม{data.muscleRecommendation.muscleGroup}
+                  </button>
+                ) : (
+                  <div className="space-y-2.5">
+                    <ul className="space-y-1">
+                      {generatedWorkout.exercises.map((g) => (
+                        <li key={g.exerciseDef.id} className="flex items-center justify-between text-xs">
+                          <span className="text-ink">
+                            {g.exerciseDef.icon} {g.exerciseDef.name}
+                          </span>
+                          <span className="font-mono text-muted">
+                            {g.sets}×{g.targetReps}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleStartGeneratedWorkout}
+                        className="text-xs font-display tracked uppercase text-bg bg-amber rounded-lg px-3 py-2 active:scale-[0.99] transition"
+                      >
+                        ▶ Start Workout
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateWorkout}
+                        className="text-xs font-display tracked uppercase text-muted border border-line rounded-lg px-3 py-2 active:scale-[0.99] transition"
+                      >
+                        🎲 สุ่มใหม่
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {aiMessage ? (
               <div className="flex items-start gap-2.5 rounded-lg border border-violet/25 bg-violetdim/30 px-3 py-3">

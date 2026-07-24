@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { ProgramDay, ProgramExercise, Workout } from '@/lib/types'
+import { GENERATED_SESSION_STORAGE_KEY, type StoredGeneratedSession } from '@/lib/generatedSession'
 import { todayDayOfWeek, todayStr } from '@/lib/weekdays'
 import { MUSCLE_GROUP_COLORS, RECOVERY_MUSCLES, type MuscleGroup } from '@/lib/muscle-groups'
 import {
@@ -51,8 +53,12 @@ interface SummaryExtras {
   recovery: { overall: number; byMuscle: MuscleRecoveryScore[] }
 }
 
-export default function SessionPage() {
+function SessionPageInner() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  // มาจาก AI Coach ("Generate Workout" → "Start Workout") — อ่านโปรแกรมที่ generate ไว้จาก
+  // sessionStorage แทนที่จะ query program_days/program_exercises จาก DB (ดู CoachPage ฝั่งเขียน)
+  const isGeneratedSource = searchParams.get('source') === 'generated'
   const { unit, toDisplay, toKg, format } = useWeightUnit()
 
   const [phase, setPhase] = useState<Phase>('loading')
@@ -92,39 +98,71 @@ export default function SessionPage() {
     }
 
     const dow = todayDayOfWeek()
-    const { data: dayRow, error: dayErr } = await supabase
-      .from('program_days')
-      .select('*')
-      .eq('day_of_week', dow)
-      .maybeSingle()
 
-    if (dayErr) {
-      setErrorMsg(dayErr.message)
-      setPhase('error')
-      return
-    }
+    let dayRow: ProgramDay | null = null
+    let typedExercises: ProgramExercise[] = []
 
-    if (!dayRow) {
-      setPhase('empty')
-      return
-    }
+    if (isGeneratedSource) {
+      // มาจากปุ่ม "Start Workout" ของ AI Coach — ไม่มีแถวจริงใน program_days/program_exercises
+      // อ่านจาก sessionStorage แทน (เขียนไว้โดย CoachPage ตอนกด Generate → Start)
+      let stored: StoredGeneratedSession | null = null
+      try {
+        const raw = sessionStorage.getItem(GENERATED_SESSION_STORAGE_KEY)
+        stored = raw ? (JSON.parse(raw) as StoredGeneratedSession) : null
+      } catch {
+        stored = null
+      }
 
-    const { data: exRows, error: exErr } = await supabase
-      .from('program_exercises')
-      .select('*')
-      .eq('program_day_id', (dayRow as ProgramDay).id)
-      .order('position')
+      if (!stored || stored.exercises.length === 0) {
+        // ไม่มีโปรแกรมค้างอยู่ (เช่น เข้า URL นี้ตรงๆ โดยไม่ได้ผ่านหน้า AI Coach) — ตกกลับไปหน้าว่างปกติ
+        setPhase('empty')
+        return
+      }
 
-    if (exErr) {
-      setErrorMsg(exErr.message)
-      setPhase('error')
-      return
-    }
+      dayRow = {
+        id: 'generated',
+        user_id: user.id,
+        day_of_week: dow,
+        title: stored.title,
+        created_at: stored.createdAt,
+      }
+      typedExercises = stored.exercises
+    } else {
+      const { data: dayRowRes, error: dayErr } = await supabase
+        .from('program_days')
+        .select('*')
+        .eq('day_of_week', dow)
+        .maybeSingle()
 
-    const typedExercises = (exRows as ProgramExercise[]) ?? []
-    if (typedExercises.length === 0) {
-      setPhase('empty')
-      return
+      if (dayErr) {
+        setErrorMsg(dayErr.message)
+        setPhase('error')
+        return
+      }
+
+      if (!dayRowRes) {
+        setPhase('empty')
+        return
+      }
+
+      const { data: exRows, error: exErr } = await supabase
+        .from('program_exercises')
+        .select('*')
+        .eq('program_day_id', (dayRowRes as ProgramDay).id)
+        .order('position')
+
+      if (exErr) {
+        setErrorMsg(exErr.message)
+        setPhase('error')
+        return
+      }
+
+      dayRow = dayRowRes as ProgramDay
+      typedExercises = (exRows as ProgramExercise[]) ?? []
+      if (typedExercises.length === 0) {
+        setPhase('empty')
+        return
+      }
     }
 
     // ดึงท่าที่บันทึกไปแล้ว "วันนี้" กลับมาทั้งหมด (เผื่อกดออกจากหน้านี้/รีเฟรชระหว่างเล่น) — ไม่กรองแค่
@@ -238,7 +276,7 @@ export default function SessionPage() {
     setStates(initialStates)
     setIndex(firstUnfinishedIndex(combinedExercises, initialStates))
     setPhase('active')
-  }, [supabase])
+  }, [supabase, isGeneratedSource])
 
   useEffect(() => {
     load()
@@ -914,6 +952,14 @@ export default function SessionPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function SessionPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <SessionPageInner />
+    </Suspense>
   )
 }
 
