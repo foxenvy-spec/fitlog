@@ -116,6 +116,39 @@ export function generateWorkoutForMuscle(
   }
 }
 
+// สลับท่าเดียวในโปรแกรมที่มีอยู่แล้ว — ใช้ตอนผู้ใช้เจอท่าที่เล่นไม่ได้ (เช่น ยิมไม่มีอุปกรณ์นี้) โดยไม่ต้อง
+// โละทั้งโปรแกรมทิ้งแบบสุ่มใหม่หมด (ต่างจาก generateWorkoutForMuscle ที่สุ่มใหม่ทั้งชุด) —
+// เลี่ยงท่าที่อยู่ในโปรแกรมเดิมอยู่แล้วทุกท่า (กันสลับแล้วซ้ำกับท่าอื่นในโปรแกรมเดียวกัน)
+// ถ้าคลังท่าของกล้ามเนื้อนี้ไม่มีท่าอื่นเหลือแล้ว (exhausted) คืนค่า null ให้ฝั่ง UI แจ้งผู้ใช้แทน
+// ไม่สุ่มคืนท่าซ้ำแบบเงียบๆ
+export function swapExerciseAt(
+  workout: GeneratedWorkout,
+  index: number,
+  exercises: ExerciseDef[]
+): GeneratedWorkout | null {
+  const current = workout.exercises[index]
+  if (!current) return null
+
+  const usedNames = new Set(workout.exercises.map((g) => g.exerciseDef.name.trim().toLowerCase()))
+
+  const candidates = exercises.filter(
+    (ex) => ex.muscleGroup === workout.muscleGroup && !usedNames.has(ex.name.trim().toLowerCase())
+  )
+  if (candidates.length === 0) return null
+
+  const replacement = candidates[Math.floor(Math.random() * candidates.length)]
+
+  const nextExercises = workout.exercises.slice()
+  nextExercises[index] = {
+    ...current,
+    exerciseDef: replacement,
+    // เอา rationale เดิมออก เพราะเป็นเหตุผลที่ Gemini ให้ไว้สำหรับท่าเก่า ไม่ใช่ท่าใหม่นี้
+    rationale: undefined,
+  }
+
+  return { ...workout, exercises: nextExercises }
+}
+
 // รายชื่อท่า+อุปกรณ์ของกล้ามเนื้อกลุ่มนี้ทั้งหมด — ส่งให้ /api/generate-workout เป็น "รายการท่าที่เลือกได้"
 // (ส่งกว้างกว่าที่ rule-based เลือกไว้ตอนแรก เพื่อให้ Gemini มีตัวเลือกมากพอจะปรุงแต่งได้จริง)
 export function candidateExercisesForMuscle(
