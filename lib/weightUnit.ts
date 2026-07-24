@@ -37,3 +37,15 @@ export function formatWeight(kg: number | null | undefined, unit: WeightUnit, de
   if (kg === null || kg === undefined) return '—'
   return `${formatWeightNumber(kgToUnit(kg, unit), decimals)} ${unit}`
 }
+
+// Drop Set quick-button (session-page.tsx) — ลดน้ำหนักปัจจุบันลงตาม pct (เช่น 10, 20) แล้วปัดเข้า
+// step เดียวกับ NumberStepper น้ำหนักปกติ (2.5kg / 5lb) กันได้ตัวเลขแปลกๆ ที่กด stepper ต่อเองไม่ลง
+// รอบ เช่น 63.86kg ทำงานในหน่วยที่ผู้ใช้เลือกแสดงอยู่ (unit) แล้วค่อยแปลงกลับเป็น kg สำหรับเก็บ state
+// เพราะ step ที่ "อ่านง่าย" (2.5/5) นิยามไว้ในหน่วยแสดงผล ไม่ใช่หน่วย kg เสมอไป
+export function dropSetWeightKg(currentKg: number, pct: number, unit: WeightUnit): number {
+  const step = unit === 'lb' ? 5 : 2.5
+  const currentInUnit = kgToUnit(currentKg, unit)
+  const reduced = currentInUnit * (1 - pct / 100)
+  const rounded = Math.max(0, Math.round(reduced / step) * step)
+  return unitToKg(rounded, unit)
+}
