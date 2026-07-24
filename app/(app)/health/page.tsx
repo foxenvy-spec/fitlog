@@ -656,6 +656,18 @@ export default function HealthPage() {
     return null
   }
 
+  // ทิศทางที่ "ดีขึ้น" ของน้ำหนัก/BMI อ้างอิงจากเป้าหมายน้ำหนักที่ตั้งไว้ (ถ้ามี): ถ้าเป้าหมายต่ำกว่าจุดเริ่มต้นคือลดน้ำหนัก, สูงกว่าคือเพิ่มน้ำหนัก
+  // ถ้ายังไม่ได้ตั้งเป้าหมาย ใช้ค่าเริ่มต้นเป็น "ลดน้ำหนักคือดีขึ้น" ซึ่งเป็นกรณีที่พบบ่อยที่สุด
+  const weightGoal = goals.find((g) => g.goal_type === 'weight' && g.status === 'active')
+  const weightDirection: Direction =
+    weightGoal && weightGoal.target_value !== null && weightGoal.starting_value !== null
+      ? weightGoal.target_value < weightGoal.starting_value
+        ? 'lowerBetter'
+        : weightGoal.target_value > weightGoal.starting_value
+          ? 'higherBetter'
+          : 'neutral'
+      : 'lowerBetter'
+
   function goalProgressPct(goal: Goal): number | null {
     const current = goalCurrentValue(goal)
     if (current === null || goal.target_value === null) return null
@@ -754,7 +766,7 @@ export default function HealthPage() {
               unit={unit}
               delta={fieldDelta('weight_kg', toDisplay)}
               deltaUnit={unit}
-              direction="neutral"
+              direction={weightDirection}
             />
             <IconStatCard
               label="ดัชนีมวลกาย"
@@ -766,7 +778,7 @@ export default function HealthPage() {
               decimals={1}
               delta={previousBmi !== null && bmi !== null ? bmi - previousBmi : null}
               deltaUnit=""
-              direction="neutral"
+              direction={weightDirection}
             />
             <IconStatCard
               label="ไขมันในร่างกาย"
