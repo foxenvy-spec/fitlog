@@ -44,13 +44,21 @@ export interface SessionSetState {
   workoutId: string | null
 }
 
-// ค่าเริ่มต้นของแต่ละท่าตอนเปิดเซสชัน — ใช้ค่าเป้าหมายจากโปรแกรมเป็นจุดตั้งต้น
-// ที่ผู้ใช้ปรับได้ระหว่างเล่นจริง (ต่างจาก "log all today" ที่บันทึกค่าเป้าหมายตรงๆ โดยไม่ให้ปรับ)
-export function initSessionSet(ex: ProgramExercise): SessionSetState {
+// ผลงานล่าสุดของท่านี้ (ไม่ใช่วันนี้) — ใช้เป็นค่าตั้งต้นตอนเปิดท่าที่ยังไม่ได้ log วันนี้
+// เพื่อจำลอง "ครั้งก่อนทำได้เท่านี้" แบบเดียวกับหน้า /log แทนที่จะเริ่มจาก 0/เป้าหมายเฉยๆ
+export interface LastPerformance {
+  reps: number
+  weightKg: number
+}
+
+// ค่าเริ่มต้นของแต่ละท่าตอนเปิดเซสชัน — ใช้ผลงานครั้งล่าสุดจริงเป็นจุดตั้งต้นก่อน (ถ้ามี)
+// ตกไปใช้ค่าเป้าหมาย/ค่าเริ่มต้นจากโปรแกรมก็ต่อเมื่อไม่เคยเล่นท่านี้มาก่อนเลย
+// ผู้ใช้ยังปรับค่าได้ระหว่างเล่นจริง (ต่างจาก "log all today" ที่บันทึกค่าเป้าหมายตรงๆ โดยไม่ให้ปรับ)
+export function initSessionSet(ex: ProgramExercise, last?: LastPerformance | null): SessionSetState {
   return {
     setsLog: [],
-    reps: parseRangeToNumber(ex.target_reps),
-    weightKg: ex.default_weight_kg,
+    reps: last ? last.reps : parseRangeToNumber(ex.target_reps),
+    weightKg: last ? last.weightKg : ex.default_weight_kg,
     rpe: rirToRpe(parseRangeToNumber(ex.target_rir)),
     logged: false,
     skipped: false,
@@ -134,7 +142,8 @@ export interface LoggedSetRow {
 export function initSessionStates(
   exercises: ProgramExercise[],
   loggedWorkouts: LoggedWorkoutRow[],
-  loggedSets: LoggedSetRow[]
+  loggedSets: LoggedSetRow[],
+  lastPerformanceByName: Record<string, LastPerformance> = {}
 ): Record<string, SessionSetState> {
   const setsByWorkout = new Map<string, LoggedSetRow[]>()
   loggedSets.forEach((s) => {
@@ -155,7 +164,7 @@ export function initSessionStates(
   return Object.fromEntries(
     exercises.map((ex) => {
       const match = byName.get(ex.exercise_name)?.shift()
-      if (!match) return [ex.id, initSessionSet(ex)]
+      if (!match) return [ex.id, initSessionSet(ex, lastPerformanceByName[ex.exercise_name] ?? null)]
 
       const sets = (setsByWorkout.get(match.id) ?? [])
         .slice()
