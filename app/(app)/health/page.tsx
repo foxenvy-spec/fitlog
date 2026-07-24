@@ -575,7 +575,7 @@ export default function HealthPage() {
   }
 
   return (
-    <div className="space-y-6 lg:max-w-2xl lg:mx-auto">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl tracked uppercase">สุขภาพร่างกาย</h1>
@@ -623,7 +623,7 @@ export default function HealthPage() {
 
       {tab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             <MiniStat label="น้ำหนักล่าสุด" value={latest?.weight_kg != null ? toDisplay(latest.weight_kg) : null} unit={unit} />
             <HeightSetting key={profile?.height_cm ?? 'unset'} profile={profile} onSaved={(p) => setProfile(p)} />
             <MiniStat label="BMI" value={bmi} unit={bmi !== null ? bmiCategory(bmi) : undefined} decimals={1} />
@@ -641,17 +641,19 @@ export default function HealthPage() {
             <MiniStat label="อายุร่างกาย" value={latest?.body_age_years} unit="ปี" decimals={0} />
           </div>
 
-          {(bmi !== null || latest?.body_fat_pct != null) && (
-            <ObesityAnalysisChart bmi={bmi} bodyFatPct={latest?.body_fat_pct ?? null} />
-          )}
+          <div className="grid lg:grid-cols-2 gap-4 items-start">
+            {(bmi !== null || latest?.body_fat_pct != null) && (
+              <ObesityAnalysisChart bmi={bmi} bodyFatPct={latest?.body_fat_pct ?? null} />
+            )}
 
-          {muscleFatItems.length > 0 ? (
-            <MuscleFatAnalysisChart items={muscleFatItems} unit={unit} />
-          ) : (
-            <p className="text-[11px] text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-3">
-              อยากดูกราฟ Muscle Fat Analysis (น้ำหนัก/กล้ามเนื้อโครงร่าง/มวลไขมัน เทียบช่วงมาตรฐาน) — กรอกช่วงมาตรฐานจากรายงานเครื่องชั่งในฟอร์มด้านล่าง (ช่อง &quot;ช่วงมาตรฐาน&quot;) สักครั้ง แล้วกราฟจะขึ้นให้อัตโนมัติ
-            </p>
-          )}
+            {muscleFatItems.length > 0 ? (
+              <MuscleFatAnalysisChart items={muscleFatItems} unit={unit} />
+            ) : (
+              <p className="text-[11px] text-muted bg-surface border border-line shadow-elevated rounded-lg px-4 py-3">
+                อยากดูกราฟ Muscle Fat Analysis (น้ำหนัก/กล้ามเนื้อโครงร่าง/มวลไขมัน เทียบช่วงมาตรฐาน) — กรอกช่วงมาตรฐานจากรายงานเครื่องชั่งในฟอร์มด้านล่าง (ช่อง &quot;ช่วงมาตรฐาน&quot;) สักครั้ง แล้วกราฟจะขึ้นให้อัตโนมัติ
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -1703,7 +1705,7 @@ function MetricForm({
       <ImportBodyReportPhoto onExtracted={handleExtracted} />
       {heightNote && <p className="text-[11px] text-muted -mt-1">{heightNote}</p>}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         <LabeledInput label={`น้ำหนัก (${unit})`} value={weight} onChange={setWeight} />
         <LabeledInput label="Body Fat (%)" value={bodyFat} onChange={setBodyFat} />
         <LabeledInput label={`Muscle (${unit})`} value={muscle} onChange={setMuscle} />
@@ -1735,7 +1737,7 @@ function MetricForm({
             <p className="text-[10px] text-muted">
               คัดลอกจากตาราง &quot;Muscle fat analysis&quot; ในรายงานเครื่องชั่ง (Low–High) — กรอกครั้งแรกครั้งเดียวก็พอ ใช้ค่าล่าสุดที่เคยกรอกไว้ต่อได้เรื่อยๆ
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <LabeledInput label={`น้ำหนัก ต่ำสุด (${unit})`} value={weightRangeLow} onChange={setWeightRangeLow} />
               <LabeledInput label={`น้ำหนัก สูงสุด (${unit})`} value={weightRangeHigh} onChange={setWeightRangeHigh} />
               <LabeledInput label={`กล้ามเนื้อโครงร่าง ต่ำสุด (${unit})`} value={skeletalRangeLow} onChange={setSkeletalRangeLow} />
@@ -1904,7 +1906,7 @@ function PhotosTab({
             ยังไม่มีรูป
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
             {photos.map((p) => (
               <div key={p.id} className="relative group">
                 {p.url && (
