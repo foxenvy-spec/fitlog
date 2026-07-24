@@ -166,12 +166,15 @@ export default function SessionPage() {
     const planExerciseNames = typedExercises.map((ex) => ex.exercise_name)
     const lastPerformanceByName: Record<string, LastPerformance> = {}
     if (planExerciseNames.length > 0) {
+      // ดึงกว้างๆ ไม่กรองชื่อท่าด้วย .in() ตรงๆ เพราะ exercise_name ระหว่างแผน (program_exercises)
+      // กับที่เคย log จริง (workouts) อาจตัวพิมพ์เล็ก/ใหญ่หรือช่องว่างหัวท้ายไม่ตรงกันเป๊ะ ทำให้ exact
+      // match แบบ .eq()/.in() หลุดเงียบๆ — เทียบแบบ trim+lowercase เอาเองแทน เหมือนที่หน้า /log
+      // ใช้ .ilike() กันเคสนี้อยู่แล้ว
       const { data: priorWorkouts } = await supabase
         .from('workouts')
         .select('id, exercise_name, reps, weight_kg')
         .eq('user_id', user.id)
         .eq('type', 'strength')
-        .in('exercise_name', planExerciseNames)
         .lt('performed_at', todayStr())
         .order('performed_at', { ascending: false })
         .order('created_at', { ascending: false })
@@ -179,15 +182,21 @@ export default function SessionPage() {
       const typedPriorWorkouts =
         (priorWorkouts as { id: string; exercise_name: string | null; reps: number | null; weight_kg: number | null }[]) ??
         []
-      // ต่อชื่อท่า เก็บแค่ครั้งล่าสุดสุด (แถวแรกที่เจอ เพราะ query เรียง performed_at ล่าสุดก่อนแล้ว)
-      const latestWorkoutByName = new Map<string, (typeof typedPriorWorkouts)[number]>()
+
+      const normalize = (s: string) => s.trim().toLowerCase()
+      const planNamesNormalized = new Set(planExerciseNames.map(normalize))
+
+      // เก็บแค่ครั้งล่าสุดสุดต่อชื่อท่า (normalize แล้ว) เพราะ query เรียง performed_at ล่าสุดก่อนแล้ว
+      const latestWorkoutByNormalizedName = new Map<string, (typeof typedPriorWorkouts)[number]>()
       typedPriorWorkouts.forEach((w) => {
-        if (w.exercise_name && !latestWorkoutByName.has(w.exercise_name)) {
-          latestWorkoutByName.set(w.exercise_name, w)
+        if (!w.exercise_name) return
+        const key = normalize(w.exercise_name)
+        if (planNamesNormalized.has(key) && !latestWorkoutByNormalizedName.has(key)) {
+          latestWorkoutByNormalizedName.set(key, w)
         }
       })
 
-      const priorWorkoutIds = Array.from(latestWorkoutByName.values()).map((w) => w.id)
+      const priorWorkoutIds = Array.from(latestWorkoutByNormalizedName.values()).map((w) => w.id)
       const { data: priorSets } =
         priorWorkoutIds.length > 0
           ? await supabase
@@ -200,7 +209,9 @@ export default function SessionPage() {
         ((priorSets as LoggedSetRow[]) ?? []).map((s) => [s.workout_id, s])
       )
 
-      latestWorkoutByName.forEach((w, name) => {
+      planExerciseNames.forEach((name) => {
+        const w = latestWorkoutByNormalizedName.get(normalize(name))
+        if (!w) return
         // มี workout_sets (เซ็ตแรก) ให้ใช้ก่อน — แม่นกว่า เพราะเก็บทีละเซ็ตจริง ไม่ใช่ top set เดียว
         // ถ้าเป็นแถวเก่าก่อนมี workout_sets ค่อย fallback ไปใช้ reps/weight_kg บนแถว workouts เอง
         const firstSet = firstSetByWorkoutId.get(w.id)
@@ -275,7 +286,7 @@ export default function SessionPage() {
         .select('id, reps, weight_kg')
         .eq('user_id', user.id)
         .eq('type', 'strength')
-        .eq('exercise_name', name)
+        .ilike('exercise_name', name)
         .lt('performed_at', todayStr())
         .order('performed_at', { ascending: false })
         .order('created_at', { ascending: false })
