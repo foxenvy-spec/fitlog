@@ -32,11 +32,15 @@ export interface GeneratedExercise {
   sets: number
   targetReps: string
   rest: string
+  // เหตุผลที่เลือกท่านี้ — มีเฉพาะเวอร์ชันที่ Gemini ปรุงแต่งทับ (source: 'ai') เท่านั้น
+  rationale?: string
 }
 
 export interface GeneratedWorkout {
   muscleGroup: MuscleGroup
   exercises: GeneratedExercise[]
+  // 'rule' = สุ่ม/เลือกจากคลังท่าล้วนๆ (ฟรี, ทันที) — 'ai' = Gemini เลือก/เรียงทับรายการ rule-based เดิม
+  source: 'rule' | 'ai'
 }
 
 // สับลำดับแบบ Fisher-Yates — ใช้สุ่มเลือกท่าภายในกลุ่มอุปกรณ์เดียวกัน (กันไม่ให้ได้โปรแกรมเดิมทุกครั้ง)
@@ -102,6 +106,7 @@ export function generateWorkoutForMuscle(
 
   return {
     muscleGroup,
+    source: 'rule',
     exercises: picked.map((exerciseDef) => ({
       exerciseDef,
       sets: DEFAULT_SETS,
@@ -111,20 +116,55 @@ export function generateWorkoutForMuscle(
   }
 }
 
+// รายชื่อท่า+อุปกรณ์ของกล้ามเนื้อกลุ่มนี้ทั้งหมด — ส่งให้ /api/generate-workout เป็น "รายการท่าที่เลือกได้"
+// (ส่งกว้างกว่าที่ rule-based เลือกไว้ตอนแรก เพื่อให้ Gemini มีตัวเลือกมากพอจะปรุงแต่งได้จริง)
+export function candidateExercisesForMuscle(
+  muscleGroup: MuscleGroup,
+  exercises: ExerciseDef[]
+): { name: string; equipment: Equipment }[] {
+  return exercises
+    .filter((ex) => ex.muscleGroup === muscleGroup)
+    .map((ex) => ({ name: ex.name, equipment: ex.equipment }))
+}
+
+// แปลงผลลัพธ์ที่ /api/generate-workout ตรวจสอบมาแล้ว (ชื่อท่าตรงกับ candidates เป๊ะเสมอ — ดู
+// route.ts ฝั่ง server) กลับเป็น GeneratedWorkout — หาท่าจาก exercise library ด้วยชื่อเดียวกัน
+// ถ้าหาไม่เจอ (ไม่ควรเกิดขึ้นเพราะ server validate แล้ว แต่กันเหนียวไว้) ข้ามท่านั้นไปเงียบๆ
+export function mapAiExercisesToWorkout(
+  muscleGroup: MuscleGroup,
+  aiExercises: { name: string; rationale: string }[],
+  exercises: ExerciseDef[]
+): GeneratedWorkout {
+  const byName = new Map(exercises.map((ex) => [ex.name, ex]))
+  const mapped: GeneratedExercise[] = []
+  aiExercises.forEach((a) => {
+    const exerciseDef = byName.get(a.name)
+    if (!exerciseDef) return
+    mapped.push({
+      exerciseDef,
+      sets: DEFAULT_SETS,
+      targetReps: DEFAULT_TARGET_REPS,
+      rest: DEFAULT_REST,
+      rationale: a.rationale || undefined,
+    })
+  })
+  return { muscleGroup, source: 'ai', exercises: mapped }
+}
+
 // แปลง GeneratedWorkout เป็น ProgramExercise[] แบบ adhoc (ไม่ผูกกับ program_exercises จริงในฐานข้อมูล)
 // ใช้ id ขึ้นต้นด้วย "gen-" (ผ่าน makeAdhocExercise เติม "adhoc:" ให้อีกชั้น) เพื่อไม่ให้ชนกับ
 // adhoc exercise อื่นที่มาจาก "เพิ่มท่าเอง" ระหว่างเซสชัน (ใช้ workout id จริงเป็น id)
 export function toAdhocProgramExercises(workout: GeneratedWorkout): ProgramExercise[] {
   return workout.exercises.map((g, i) =>
     makeAdhocExercise({
-      id: `gen-${i}-${g.exerciseDef.id}`,
+      id: `gen-${workout.source}-${i}-${g.exerciseDef.id}`,
       exerciseName: g.exerciseDef.name,
       muscleGroup: workout.muscleGroup,
       position: i,
       sets: g.sets,
       targetReps: g.targetReps,
       rest: g.rest,
-      rationale: 'สร้างอัตโนมัติจาก AI Coach (rule-based)',
+      rationale: g.rationale || 'สร้างอัตโนมัติจาก AI Coach (rule-based)',
     })
   )
 }
