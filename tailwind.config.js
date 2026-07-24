@@ -41,6 +41,20 @@ module.exports = {
       letterSpacing: {
         widest2: '0.2em',
       },
+      // ใช้กับ Toast (components/Toast.tsx) — ป็อปขึ้นเร็วๆ (150ms), ค้างให้อ่านทัน (900ms),
+      // แล้วจางหายไป (350ms) รวม 1.4s ตรงกับ setTimeout ที่เอา toast ออกจาก state จริงใน Toast.tsx
+      // (ต้องแก้ทั้งคู่พร้อมกันถ้าจะเปลี่ยน duration ไม่งั้น toast จะหายไปกลางอนิเมชันหรือค้างจอเปล่า)
+      keyframes: {
+        toast: {
+          '0%': { opacity: '0', transform: 'translateY(-6px) scale(0.94)' },
+          '11%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '75%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '100%': { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
+        },
+      },
+      animation: {
+        toast: 'toast 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      },
     },
   },
   plugins: [],
