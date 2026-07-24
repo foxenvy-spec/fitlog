@@ -84,7 +84,9 @@ export default function CoachPage() {
   const [data, setData] = useState<CoachData | null>(null)
 
   // โปรแกรมที่สร้างแบบ rule-based (ปุ่ม "Generate Workout") — เก็บแยกจาก data เพราะเป็น action ของ
-  // ผู้ใช้เอง ไม่ใช่ค่าที่คำนวณตอนโหลดหน้า ผู้ใช้กด "สุ่มใหม่" ได้เรื่อยๆ ก่อนตัดสินใจกด Start Workout
+  // ผู้ใช้เอง ไม่ใช่ค่าที่คำนวณตอนโหลดหน้า — เก็บแยกไว้เพื่อให้กด Start Workout ได้ทันทีที่ generate เสร็จ
+  // (เดิมเคยมีปุ่ม "สุ่มใหม่" แต่เอาออกแล้ว — ขัดกับ framing "AI Coach วิเคราะห์มาให้แล้ว" เมื่ออยู่
+  // คู่กับปุ่ม "ให้ AI ปรุงแต่งท่า" ทำให้ผู้ใช้สับสนว่าโปรแกรมที่เห็นคือสุ่มมาเฉยๆ หรือวิเคราะห์จริง)
   const [generatedWorkout, setGeneratedWorkout] = useState<GeneratedWorkout | null>(null)
   // ให้ Gemini ปรุงแต่งทับโปรแกรม rule-based ที่มีอยู่แล้ว — opt-in เหมือน requestAiInsight
   // ถ้าพัง ต้องไม่แทนที่ generatedWorkout เดิม (fallback กลับไปใช้ rule-based เสมอ)
@@ -413,13 +415,6 @@ export default function CoachPage() {
                         className="text-xs font-display tracked uppercase text-bg bg-amber rounded-lg px-3 py-2 active:scale-[0.99] transition"
                       >
                         ▶ Start Workout
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleGenerateWorkout}
-                        className="text-xs font-display tracked uppercase text-muted border border-line rounded-lg px-3 py-2 active:scale-[0.99] transition"
-                      >
-                        🎲 สุ่มใหม่
                       </button>
                       {generatedWorkout.source === 'rule' && (
                         <button
