@@ -43,6 +43,7 @@ function bmiCategory(bmi: number) {
 
 import ErrorState from '@/components/ErrorState'
 import LoadingState from '@/components/LoadingState'
+import ImportBodyReportPhoto, { ExtractedBodyReport } from '@/components/ImportBodyReportPhoto'
 
 export default function HealthPage() {
   const supabase = createClient()
@@ -568,7 +569,7 @@ function HeightSetting({ profile, onSaved }: { profile: Profile | null; onSaved:
 
 function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   const supabase = createClient()
-  const { unit, toKg } = useWeightUnit()
+  const { unit, toKg, toDisplay } = useWeightUnit()
   const [date, setDate] = useState(todayStr())
   const [weight, setWeight] = useState('')
   const [bodyFat, setBodyFat] = useState('')
@@ -594,6 +595,40 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
   const [fatMassRangeHigh, setFatMassRangeHigh] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function fmtKg(v: number | null): string {
+    return v !== null ? String(Math.round(toDisplay(v) * 10) / 10) : ''
+  }
+
+  function handleExtracted(data: ExtractedBodyReport) {
+    if (data.measured_at) setDate(data.measured_at)
+    if (data.weight_kg !== null) setWeight(fmtKg(data.weight_kg))
+    if (data.body_fat_pct !== null) setBodyFat(String(data.body_fat_pct))
+    if (data.muscle_kg !== null) setMuscle(fmtKg(data.muscle_kg))
+    if (data.body_fat_kg !== null) setBodyFatKg(fmtKg(data.body_fat_kg))
+    if (data.body_water_kg !== null) setBodyWater(fmtKg(data.body_water_kg))
+    if (data.inorganic_salt_kg !== null) setInorganicSalt(fmtKg(data.inorganic_salt_kg))
+    if (data.protein_kg !== null) setProtein(fmtKg(data.protein_kg))
+    if (data.skeletal_muscle_kg !== null) setSkeletalMuscle(fmtKg(data.skeletal_muscle_kg))
+    if (data.visceral_fat_grade !== null) setVisceralFat(String(data.visceral_fat_grade))
+    if (data.bmr_kcal !== null) setBmr(String(data.bmr_kcal))
+    const hasRanges =
+      data.weight_range_low !== null ||
+      data.weight_range_high !== null ||
+      data.skeletal_muscle_range_low !== null ||
+      data.skeletal_muscle_range_high !== null ||
+      data.fat_mass_range_low !== null ||
+      data.fat_mass_range_high !== null
+    if (hasRanges) {
+      setShowRanges(true)
+      if (data.weight_range_low !== null) setWeightRangeLow(fmtKg(data.weight_range_low))
+      if (data.weight_range_high !== null) setWeightRangeHigh(fmtKg(data.weight_range_high))
+      if (data.skeletal_muscle_range_low !== null) setSkeletalRangeLow(fmtKg(data.skeletal_muscle_range_low))
+      if (data.skeletal_muscle_range_high !== null) setSkeletalRangeHigh(fmtKg(data.skeletal_muscle_range_high))
+      if (data.fat_mass_range_low !== null) setFatMassRangeLow(fmtKg(data.fat_mass_range_low))
+      if (data.fat_mass_range_high !== null) setFatMassRangeHigh(fmtKg(data.fat_mass_range_high))
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -672,6 +707,9 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
           className="bg-transparent text-muted text-xs font-mono outline-none border-b border-transparent focus:border-line"
         />
       </div>
+
+      <ImportBodyReportPhoto onExtracted={handleExtracted} />
+
       <div className="grid grid-cols-3 gap-3">
         <LabeledInput label={`น้ำหนัก (${unit})`} value={weight} onChange={setWeight} />
         <LabeledInput label="Body Fat (%)" value={bodyFat} onChange={setBodyFat} />
