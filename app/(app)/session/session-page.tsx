@@ -26,6 +26,7 @@ import ExercisePicker from '@/components/ExercisePicker'
 import type { ExerciseDef } from '@/lib/exerciseLibrary'
 import { estimateCaloriesToday } from '@/lib/dashboardStats'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
+import { dropSetWeightKg } from '@/lib/weightUnit'
 import { useToast } from '@/components/Toast'
 import WeightUnitToggle from '@/components/WeightUnitToggle'
 import { computeSessionMuscleRecovery, tierForPct, type MuscleRecoveryScore } from '@/lib/recoveryScore'
@@ -871,6 +872,26 @@ export default function SessionPage() {
               min={0}
             />
           </div>
+
+          {/* Drop Set — ลดน้ำหนักด่วนสำหรับเซ็ตถัดไปโดยไม่ต้องกด stepper ทีละครั้ง ปัดเข้า step
+              เดียวกับ NumberStepper น้ำหนักด้านบน (2.5kg / 5lb) กันได้ตัวเลขแปลกๆ เช่น 63.75kg
+              ไม่ลดต่ำกว่า 0 — ใช้ currentState.weightKg (หน่วย kg เสมอ) เป็นฐานคำนวณเพื่อไม่ให้
+              ปัดเศษผิดพลาดจากการแปลงหน่วยไปมาซ้ำๆ ระหว่างเซ็ต */}
+          {(currentState.weightKg ?? 0) > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] tracked uppercase text-muted shrink-0">Drop Set</span>
+              {[10, 20].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => updateCurrent({ weightKg: dropSetWeightKg(currentState.weightKg ?? 0, pct, unit) })}
+                  className="flex-1 rounded-lg border border-line text-muted hover:text-amber hover:border-amber/50 transition py-1.5 text-[11px] font-display tracked uppercase active:scale-[0.98]"
+                >
+                  −{pct}%
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             type="button"
