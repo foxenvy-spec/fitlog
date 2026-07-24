@@ -38,11 +38,10 @@ function bmiOf(weightKg: number | null, heightCm: number | null) {
 }
 
 function bmiCategory(bmi: number) {
-  if (bmi < 18.5) return 'น้ำหนักน้อย'
-  if (bmi < 23) return 'ปกติ'
-  if (bmi < 25) return 'ท้วม'
-  if (bmi < 30) return 'อ้วน'
-  return 'อ้วนมาก'
+  // ใช้เกณฑ์เดียวกับแถบ OBESITY ANALYSIS ด้านล่าง (WHO/สากล: ต่ำ < 18.5, มาตรฐาน 18.5-25, สูง > 25)
+  if (bmi < 18.5) return 'ต่ำ'
+  if (bmi <= 25) return 'มาตรฐาน'
+  return 'สูง'
 }
 
 import ErrorState from '@/components/ErrorState'
