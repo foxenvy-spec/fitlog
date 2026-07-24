@@ -98,6 +98,22 @@ export default function HealthPage() {
     load()
   }, [load])
 
+  const saveHeight = useCallback(
+    async (heightCm: number) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, height_cm: heightCm, updated_at: new Date().toISOString() })
+        .select()
+        .single()
+      if (data) setProfile(data as Profile)
+    },
+    [supabase]
+  )
+
   const latest = metrics[0] ?? null
   const bmi = bmiOf(latest?.weight_kg ?? null, profile?.height_cm ?? null)
 
@@ -282,7 +298,7 @@ export default function HealthPage() {
             <MiniStat label="BMR" value={latest?.bmr_kcal} unit="kcal" decimals={0} />
           </div>
 
-          <HeightSetting profile={profile} onSaved={(p) => setProfile(p)} />
+          <HeightSetting key={profile?.height_cm ?? 'unset'} profile={profile} onSaved={(p) => setProfile(p)} />
 
           {(bmi !== null || latest?.body_fat_pct != null) && (
             <ObesityAnalysisChart bmi={bmi} bodyFatPct={latest?.body_fat_pct ?? null} />
@@ -339,7 +355,10 @@ export default function HealthPage() {
             <MetricTrendChart title="แนวโน้ม BMR" data={bmrTrend} color="#5FA85F" unit="kcal" />
           )}
 
-          <MetricForm onSaved={(m) => setMetrics((prev) => [m, ...prev.filter((x) => x.id !== m.id)])} />
+          <MetricForm
+            onSaved={(m) => setMetrics((prev) => [m, ...prev.filter((x) => x.id !== m.id)])}
+            onHeightExtracted={saveHeight}
+          />
 
           <section>
             <h2 className="font-display text-sm tracked uppercase text-muted mb-3">ประวัติการวัดผล</h2>
@@ -653,7 +672,13 @@ function HeightSetting({ profile, onSaved }: { profile: Profile | null; onSaved:
   )
 }
 
-function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
+function MetricForm({
+  onSaved,
+  onHeightExtracted,
+}: {
+  onSaved: (m: BodyMetric) => void
+  onHeightExtracted?: (heightCm: number) => void
+}) {
   const supabase = createClient()
   const { unit, toKg, toDisplay } = useWeightUnit()
   const [date, setDate] = useState(todayStr())
@@ -688,6 +713,7 @@ function MetricForm({ onSaved }: { onSaved: (m: BodyMetric) => void }) {
 
   function handleExtracted(data: ExtractedBodyReport) {
     if (data.measured_at) setDate(data.measured_at)
+    if (data.height_cm !== null) onHeightExtracted?.(data.height_cm)
     if (data.weight_kg !== null) setWeight(fmtKg(data.weight_kg))
     if (data.body_fat_pct !== null) setBodyFat(String(data.body_fat_pct))
     if (data.muscle_kg !== null) setMuscle(fmtKg(data.muscle_kg))
