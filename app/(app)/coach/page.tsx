@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import type { ProgramDay, Workout } from '@/lib/types'
-import { generateWorkoutForMuscle, toAdhocProgramExercises, type GeneratedWorkout } from '@/lib/workoutGenerator'
+import {
+  generateWorkoutForMuscle,
+  toAdhocProgramExercises,
+  candidateExercisesForMuscle,
+  mapAiExercisesToWorkout,
+  type GeneratedWorkout,
+} from '@/lib/workoutGenerator'
 import { GENERATED_SESSION_STORAGE_KEY, type StoredGeneratedSession } from '@/lib/generatedSession'
 import { MUSCLE_GROUPS, VOLUME_MUSCLES, type MuscleGroup } from '@/lib/muscle-groups'
 import { todayStr } from '@/lib/weekdays'
@@ -80,6 +86,10 @@ export default function CoachPage() {
   // โปรแกรมที่สร้างแบบ rule-based (ปุ่ม "Generate Workout") — เก็บแยกจาก data เพราะเป็น action ของ
   // ผู้ใช้เอง ไม่ใช่ค่าที่คำนวณตอนโหลดหน้า ผู้ใช้กด "สุ่มใหม่" ได้เรื่อยๆ ก่อนตัดสินใจกด Start Workout
   const [generatedWorkout, setGeneratedWorkout] = useState<GeneratedWorkout | null>(null)
+  // ให้ Gemini ปรุงแต่งทับโปรแกรม rule-based ที่มีอยู่แล้ว — opt-in เหมือน requestAiInsight
+  // ถ้าพัง ต้องไม่แทนที่ generatedWorkout เดิม (fallback กลับไปใช้ rule-based เสมอ)
+  const [aiWorkoutLoading, setAiWorkoutLoading] = useState(false)
+  const [aiWorkoutError, setAiWorkoutError] = useState<string | null>(null)
   // คำแนะนำเชิงลึกจาก Gemini — แยกจาก data.dailySummary (rule-based, คำนวณฟรีทันที) โดยตั้งใจ
   // เพราะเป็น opt-in (ผู้ใช้กดขอเอง ไม่เรียกอัตโนมัติ) กันชนโควต้าฟรีของ Gemini — ถ้าพังให้ตกกลับไป
   // ใช้ dailySummary เดิมเสมอ (ดู aiError ด้านล่าง ไม่แทนที่ dailySummary)
@@ -241,6 +251,7 @@ export default function CoachPage() {
     setAiMessage(null)
     setAiError(null)
     setGeneratedWorkout(null)
+    setAiWorkoutError(null)
   }, [data])
 
   async function requestAiInsight() {
@@ -286,6 +297,45 @@ export default function CoachPage() {
     if (!data?.muscleRecommendation) return
     const workout = generateWorkoutForMuscle(data.muscleRecommendation.muscleGroup as MuscleGroup, exercises)
     setGeneratedWorkout(workout)
+    setAiWorkoutError(null)
+  }
+
+  async function handleEnhanceWithAi() {
+    if (!generatedWorkout || !data) return
+    setAiWorkoutLoading(true)
+    setAiWorkoutError(null)
+    try {
+      const res = await fetch('/api/generate-workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          muscleGroup: generatedWorkout.muscleGroup,
+          exerciseCount: generatedWorkout.exercises.length,
+          candidates: candidateExercisesForMuscle(generatedWorkout.muscleGroup, exercises),
+          // ยังไม่มีรายการ "เพิ่งเล่นล่าสุด" แยกต่างหากในหน้านี้ — ใช้ชื่อท่าจาก Progressive Overload
+          // plans (ท่าที่ทำบ่อยที่สุด) เป็น proxy ที่ใกล้เคียงที่สุดที่มีอยู่แล้ว
+          recentExerciseNames: data.overloadPlans.map((p) => p.exerciseName),
+          overloadHints: data.overloadPlans.map((p) => ({ exerciseName: p.exerciseName, action: p.action })),
+          balanceStatus: data.balance.status,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setAiWorkoutError(json.error ?? 'ให้ AI ปรุงแต่งโปรแกรมไม่สำเร็จ ลองใหม่อีกครั้ง')
+        return
+      }
+      const enhanced = mapAiExercisesToWorkout(generatedWorkout.muscleGroup, json.exercises ?? [], exercises)
+      if (enhanced.exercises.length === 0) {
+        setAiWorkoutError('AI ไม่ได้เลือกท่าที่ใช้ได้ กลับไปใช้โปรแกรมเดิม')
+        return
+      }
+      setGeneratedWorkout(enhanced)
+    } catch (err) {
+      console.error('AI workout enhance request failed', err)
+      setAiWorkoutError('ให้ AI ปรุงแต่งโปรแกรมไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองใหม่')
+    } finally {
+      setAiWorkoutLoading(false)
+    }
   }
 
   function handleStartGeneratedWorkout() {
@@ -338,19 +388,25 @@ export default function CoachPage() {
                   </button>
                 ) : (
                   <div className="space-y-2.5">
-                    <ul className="space-y-1">
+                    {generatedWorkout.source === 'ai' && (
+                      <p className="text-[9px] font-display tracked uppercase text-violet">🔮 ปรุงแต่งโดย Gemini</p>
+                    )}
+                    <ul className="space-y-1.5">
                       {generatedWorkout.exercises.map((g) => (
-                        <li key={g.exerciseDef.id} className="flex items-center justify-between text-xs">
-                          <span className="text-ink">
-                            {g.exerciseDef.icon} {g.exerciseDef.name}
-                          </span>
-                          <span className="font-mono text-muted">
-                            {g.sets}×{g.targetReps}
-                          </span>
+                        <li key={g.exerciseDef.id} className="text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-ink">
+                              {g.exerciseDef.icon} {g.exerciseDef.name}
+                            </span>
+                            <span className="font-mono text-muted">
+                              {g.sets}×{g.targetReps}
+                            </span>
+                          </div>
+                          {g.rationale && <p className="text-[10px] text-violet/80 mt-0.5">{g.rationale}</p>}
                         </li>
                       ))}
                     </ul>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={handleStartGeneratedWorkout}
@@ -365,7 +421,18 @@ export default function CoachPage() {
                       >
                         🎲 สุ่มใหม่
                       </button>
+                      {generatedWorkout.source === 'rule' && (
+                        <button
+                          type="button"
+                          onClick={handleEnhanceWithAi}
+                          disabled={aiWorkoutLoading}
+                          className="text-xs font-display tracked uppercase text-violet border border-violet/40 rounded-lg px-3 py-2 active:scale-[0.99] transition disabled:opacity-50"
+                        >
+                          {aiWorkoutLoading ? 'กำลังปรุงแต่ง...' : '🔮 ให้ AI ปรุงแต่งท่า'}
+                        </button>
+                      )}
                     </div>
+                    {aiWorkoutError && <p className="text-[11px] text-rusttext">{aiWorkoutError}</p>}
                   </div>
                 )}
               </div>
