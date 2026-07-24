@@ -82,6 +82,12 @@ export interface BodyMetric {
   body_age_range_high: number | null
   muscle_range_low: number | null
   muscle_range_high: number | null
+  body_water_range_low: number | null
+  body_water_range_high: number | null
+  inorganic_salt_range_low: number | null
+  inorganic_salt_range_high: number | null
+  protein_range_low: number | null
+  protein_range_high: number | null
   notes: string | null
   created_at: string
 }
