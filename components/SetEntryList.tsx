@@ -1,5 +1,7 @@
 'use client'
 
+import { useToast } from '@/components/Toast'
+
 // รายการเซ็ตแบบ "กดได้ด้วยนิ้วโป้ง" ทีละเซ็ต — แทนที่ input เซ็ต/reps/น้ำหนักแบบก้อนเดียว
 // เดิมที่บังคับให้ reps/น้ำหนักเท่ากันทุกเซ็ต ตอนนี้แต่ละเซ็ตปรับเองได้ เก็บ progress ระหว่างฝึกจริง
 // (เช่น drop set 95x8, 95x8, 95x6) และให้ auto-fill ค่าจากเซ็ตก่อนหน้าเวลากด "+" เพิ่มเซ็ตใหม่
@@ -95,9 +97,18 @@ export default function SetEntryList({
 }) {
   const step = weightStep ?? (weightUnit === 'lb' ? 5 : 2.5)
   const weightLabel = weightUnit === 'lb' ? 'น้ำหนัก (ปอนด์)' : 'น้ำหนัก (กก.)'
+  const { showToast } = useToast()
 
   function updateRow(id: string, patch: Partial<SetRow>) {
     onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  }
+
+  // สลับสถานะ "เซ็ตนี้เสร็จแล้ว" — โชว์ feedback (toast + haptic) เฉพาะตอนติ๊ก "เสร็จ" (false → true)
+  // เท่านั้น ไม่โชว์ตอนกดยกเลิกติ๊ก (true → false) เพราะนั่นไม่ใช่ moment ที่ควรฉลอง
+  function toggleDone(row: SetRow) {
+    const next = !row.done
+    updateRow(row.id, { done: next })
+    if (next) showToast('เซ็ตเสร็จแล้ว ✓')
   }
 
   function removeRow(id: string) {
@@ -139,7 +150,7 @@ export default function SetEntryList({
             </div>
             <button
               type="button"
-              onClick={() => updateRow(row.id, { done: !row.done })}
+              onClick={() => toggleDone(row)}
               aria-pressed={row.done}
               aria-label={row.done ? 'เซ็ตนี้เสร็จแล้ว' : 'ทำเซ็ตนี้เสร็จแล้ว'}
               className={`w-8 h-8 shrink-0 rounded-full border text-sm transition active:scale-95 ${
