@@ -26,6 +26,7 @@ import ExercisePicker from '@/components/ExercisePicker'
 import type { ExerciseDef } from '@/lib/exerciseLibrary'
 import { estimateCaloriesToday } from '@/lib/dashboardStats'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
+import { useToast } from '@/components/Toast'
 import WeightUnitToggle from '@/components/WeightUnitToggle'
 import { computeSessionMuscleRecovery, tierForPct, type MuscleRecoveryScore } from '@/lib/recoveryScore'
 import { useStopwatch, formatClock } from '@/lib/useStopwatch'
@@ -54,6 +55,7 @@ interface SummaryExtras {
 export default function SessionPage() {
   const supabase = createClient()
   const { unit, toDisplay, toKg, format } = useWeightUnit()
+  const { showToast } = useToast()
 
   const [phase, setPhase] = useState<Phase>('loading')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -439,6 +441,7 @@ export default function SessionPage() {
           [current.id]: { ...currentState, logged: true, workoutId },
         }
         setStates(merged)
+        showToast('บันทึกแล้ว ✓')
         goNext(merged)
         return
       }

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Workout, WorkoutSet, WorkoutType } from '@/lib/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_COLORS } from '@/lib/muscle-groups'
 import { useWeightUnit } from '@/components/WeightUnitProvider'
+import { useToast } from '@/components/Toast'
 import ExercisePicker from '@/components/ExercisePicker'
 import { findExerciseByName, type ExerciseDef } from '@/lib/exercises'
 import { useExerciseLibrary } from '@/lib/useExerciseLibrary'
@@ -46,6 +47,7 @@ function LogPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { unit, toDisplay, toKg, format } = useWeightUnit()
+  const { showToast } = useToast()
   const { data: exercises = [] } = useExerciseLibrary()
 
   // ใช้จัด Heart Rate Zone ของชีพจรเฉลี่ยที่กรอก/นำเข้ามา — ค่าเดียวกับที่ตั้งไว้ใน Weekly Cardio Volume
@@ -382,6 +384,9 @@ function LogPageInner() {
       if (isPR) {
         setPrFlash(true)
         setTimeout(() => setPrFlash(false), 2500)
+        showToast('สถิติใหม่! 🏆', 'pr')
+      } else {
+        showToast('บันทึกแล้ว ✓')
       }
       loadToday()
       return
@@ -417,6 +422,7 @@ function LogPageInner() {
     resetForm()
     setFlash(true)
     setTimeout(() => setFlash(false), 1200)
+    showToast('บันทึกแล้ว ✓')
     loadToday()
   }
 
