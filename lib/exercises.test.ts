@@ -38,6 +38,17 @@ const FIXTURE: ExerciseDef[] = [
     aliases: ['overhead press', 'มิลิทารีเพรส', 'Overhead Press', 'OHP', 'Military Press', 'Barbell Shoulder Press'],
     instructions: [],
   },
+  {
+    id: 'plate-loaded-row-machine',
+    name: 'Seated Row Machine',
+    nameTh: 'แมชชีนโรว์ (นั่งดึง)',
+    muscleGroup: 'หลัง',
+    secondaryMuscles: ['แขน'],
+    equipment: 'เครื่อง',
+    icon: '⚙️',
+    aliases: ['machine row', 'row machine', 'selectorized row', 'pin loaded row', 'hammer strength row'],
+    instructions: [],
+  },
 ]
 
 describe('findExerciseByName', () => {
@@ -71,6 +82,13 @@ describe('searchExercises still supports partial matches for the picker dropdown
   it('finds bench press variants by partial text', () => {
     const results = searchExercises(FIXTURE, 'bb bench')
     expect(results.some((ex) => ex.id === 'bench-press')).toBe(true)
+  })
+
+  it('finds a selectorized machine when searched by common gym-floor phrasing', () => {
+    // ผู้ใช้พิมพ์ตามที่เห็นเขียนบนเครื่องจริง/เรียกกันปากต่อปาก ไม่ใช่ชื่อทางการในคลัง
+    // ต้องหาเจอผ่าน alias แม้คำเรียงคนละแบบกับชื่อจริง ("machine row" vs "Seated Row Machine")
+    expect(searchExercises(FIXTURE, 'Machine Row').some((ex) => ex.id === 'plate-loaded-row-machine')).toBe(true)
+    expect(searchExercises(FIXTURE, 'row machine').some((ex) => ex.id === 'plate-loaded-row-machine')).toBe(true)
   })
 })
 
