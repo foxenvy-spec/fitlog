@@ -933,11 +933,15 @@ function DropletsIcon() {
   )
 }
 
+const ZONE_LABEL_TH: Record<'Low' | 'Standard' | 'High', string> = { Low: 'ต่ำ', Standard: 'มาตรฐาน', High: 'สูง' }
+
 function ZoneBadge({ zone }: { zone: 'Low' | 'Standard' | 'High' }) {
   const cls =
     zone === 'Low' ? 'bg-steeldim text-steel' : zone === 'High' ? 'bg-rustdim text-rusttext' : 'bg-mossdim text-moss'
   return (
-    <span className={`text-[10px] font-display tracked uppercase px-2 py-1 rounded-full whitespace-nowrap ${cls}`}>{zone}</span>
+    <span className={`text-[10px] font-display tracked uppercase px-2 py-1 rounded-full whitespace-nowrap ${cls}`}>
+      {ZONE_LABEL_TH[zone]}
+    </span>
   )
 }
 
@@ -1046,7 +1050,8 @@ function TopStatCard({
   )
 }
 
-// การ์ดแนวโน้มรายตัวชี้วัดแบบใหม่ — ไอคอน + ค่าปัจจุบัน + delta ในช่วงที่เลือกดู + กราฟเส้น + แถบ Low/Standard/High (ถ้ามีข้อมูลช่วง)
+// การ์ดแนวโน้มรายตัวชี้วัดแบบกะทัดรัด — ไอคอน+ชื่อ+ค่าปัจจุบัน (คอลัมน์ซ้าย), กราฟเส้น (คอลัมน์กลาง),
+// แถบ Low/Standard/High (คอลัมน์ขวา) เรียงเป็นแถวเดียวกัน บนจอเล็กจะวางซ้อนกันแนวตั้งแทน
 function MetricRowCard({ trend, periodLabel }: { trend: TrendDef; periodLabel: string }) {
   const data = trend.data
   const dec = trend.decimals ?? 1
@@ -1059,23 +1064,32 @@ function MetricRowCard({ trend, periodLabel }: { trend: TrendDef; periodLabel: s
 
   return (
     <section className="bg-surface border border-line shadow-elevated rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2 gap-2">
-        <span className="flex items-center gap-2 min-w-0">
-          <span className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-steel/15 text-steel">
-            <Icon />
-          </span>
-          <span className="min-w-0">
-            <span className="block font-display text-sm tracked uppercase text-ink truncate">{trend.label}</span>
-            <span className="font-mono text-lg tabular text-ink">
-              {latestVal !== null ? latestVal.toFixed(dec) : '—'}
-              <span className="text-xs text-muted ml-1">{trend.unit}</span>
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,150px)_1fr_minmax(0,170px)] gap-3 sm:gap-4 sm:items-center">
+        {/* คอลัมน์ซ้าย: ไอคอน + ชื่อตัวชี้วัด (อยู่ข้างหน้า) + ค่าปัจจุบัน + badge */}
+        <div className="flex items-start justify-between gap-2 sm:block">
+          <div className="flex items-start gap-2 min-w-0">
+            <span
+              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center"
+              style={{ background: `${trend.color}26`, color: trend.color }}
+            >
+              <Icon />
             </span>
-          </span>
-        </span>
-        <span className="flex flex-col items-end gap-1 shrink-0">
+            <div className="min-w-0">
+              <span className="block font-display text-xs tracked uppercase text-ink truncate">{trend.label}</span>
+              <span className="font-mono text-lg tabular text-ink whitespace-nowrap">
+                {latestVal !== null ? latestVal.toFixed(dec) : '—'}
+                <span className="text-xs text-muted ml-1">{trend.unit}</span>
+              </span>
+              {zone && (
+                <div className="mt-1">
+                  <ZoneBadge zone={zone} />
+                </div>
+              )}
+            </div>
+          </div>
           {delta !== null && (
             <span
-              className={`text-[11px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap ${
+              className={`text-[11px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
                 deltaGood ? 'bg-mossdim text-moss' : 'bg-rustdim text-rusttext'
               }`}
             >
@@ -1083,83 +1097,59 @@ function MetricRowCard({ trend, periodLabel }: { trend: TrendDef; periodLabel: s
               {delta.toFixed(dec)} {trend.unit}
             </span>
           )}
-          {zone && <ZoneBadge zone={zone} />}
-        </span>
+        </div>
+
+        {/* คอลัมน์กลาง: กราฟเส้น */}
+        {data.length > 1 ? (
+          <div className="h-24">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid stroke="#2E333A" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={{ stroke: '#2E333A' }} tickLine={false} />
+                <YAxis tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={false} tickLine={false} width={26} domain={['auto', 'auto']} />
+                <Tooltip
+                  contentStyle={{ background: '#1C1F24', border: '1px solid #2E333A', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#9498A0' }}
+                  itemStyle={{ color: '#F3F0E8' }}
+                  formatter={(v: number) => [`${v} ${trend.unit}`, trend.label]}
+                />
+                <Line type="monotone" dataKey="value" stroke={trend.color} strokeWidth={2} dot={{ r: 2, fill: trend.color }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted py-6 text-center">ยังไม่มีข้อมูลพอในช่วง{periodLabel} — บันทึกอย่างน้อย 2 ครั้ง</p>
+        )}
+
+        {/* คอลัมน์ขวา: แถบ Low/Standard/High */}
+        {trend.range ? (
+          <div>
+            <div className="flex text-[9px] mb-1 text-center">
+              <span className="flex-1 text-steel">Low</span>
+              <span className="flex-1 text-moss">Standard</span>
+              <span className="flex-1 text-rusttext">High</span>
+            </div>
+            <div className="flex h-1.5 rounded-full overflow-hidden">
+              <div className="flex-1 bg-steel/70" />
+              <div className="flex-1 bg-moss/70" />
+              <div className="flex-1 bg-rust/70" />
+            </div>
+            <div className="flex justify-between text-[9px] text-muted mt-1">
+              <span>{trend.range.low.toFixed(dec)}</span>
+              <span className="text-ink">
+                {((trend.range.low + trend.range.high) / 2).toFixed(dec)}
+              </span>
+              <span>{trend.range.high.toFixed(dec)}</span>
+            </div>
+            <p className="text-[9px] text-muted mt-1">
+              ช่วงมาตรฐาน: {trend.range.low.toFixed(dec)} - {trend.range.high.toFixed(dec)} {trend.unit}
+            </p>
+            {trend.range.note && <p className="text-[9px] text-muted mt-0.5 italic">{trend.range.note}</p>}
+          </div>
+        ) : (
+          <div className="hidden sm:block" />
+        )}
       </div>
-
-      {data.length > 1 ? (
-        <div className="h-24">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-              <CartesianGrid stroke="#2E333A" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={{ stroke: '#2E333A' }} tickLine={false} />
-              <YAxis tick={{ fill: '#9498A0', fontSize: 9 }} axisLine={false} tickLine={false} width={30} domain={['auto', 'auto']} />
-              <Tooltip
-                contentStyle={{ background: '#1C1F24', border: '1px solid #2E333A', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#9498A0' }}
-                itemStyle={{ color: '#F3F0E8' }}
-                formatter={(v: number) => [`${v} ${trend.unit}`, trend.label]}
-              />
-              <Line type="monotone" dataKey="value" stroke={trend.color} strokeWidth={2} dot={{ r: 2, fill: trend.color }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <p className="text-[11px] text-muted py-6 text-center">ยังไม่มีข้อมูลพอในช่วง{periodLabel} — บันทึกอย่างน้อย 2 ครั้ง</p>
-      )}
-
-      {trend.range && (
-        <div className="mt-2">
-          <div className="flex text-[9px] mb-1">
-            {(() => {
-              const { min, low, high, max } = trend.range
-              const pct = (v: number) => ((Math.min(Math.max(v, min), max) - min) / (max - min)) * 100
-              const lowPct = pct(low)
-              const highPct = pct(high)
-              return (
-                <>
-                  <span style={{ width: `${lowPct}%` }} className="truncate text-steel">
-                    Low
-                  </span>
-                  <span style={{ width: `${highPct - lowPct}%` }} className="text-center truncate text-moss">
-                    Standard
-                  </span>
-                  <span style={{ width: `${100 - highPct}%` }} className="text-right truncate text-rusttext">
-                    High
-                  </span>
-                </>
-              )
-            })()}
-          </div>
-          <div className="relative h-1.5 rounded-full bg-surface2 overflow-hidden">
-            {(() => {
-              const { min, low, high, max } = trend.range
-              const pct = (v: number) => ((Math.min(Math.max(v, min), max) - min) / (max - min)) * 100
-              const lowPct = pct(low)
-              const highPct = pct(high)
-              const valuePct = latestVal !== null ? pct(latestVal) : null
-              return (
-                <>
-                  <div className="absolute inset-y-0 bg-steel/70" style={{ left: 0, width: `${lowPct}%` }} />
-                  <div className="absolute inset-y-0 bg-moss/70" style={{ left: `${lowPct}%`, width: `${highPct - lowPct}%` }} />
-                  <div className="absolute inset-y-0 bg-rust/70" style={{ left: `${highPct}%`, right: 0 }} />
-                  {valuePct !== null && (
-                    <div
-                      className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-bg border-2 border-ink"
-                      style={{ left: `${valuePct}%`, transform: 'translate(-50%, -50%)' }}
-                    />
-                  )}
-                </>
-              )
-            })()}
-          </div>
-          <div className="flex justify-between text-[9px] text-muted mt-1">
-            <span>ช่วงมาตรฐาน: {trend.range.low.toFixed(dec)}</span>
-            <span>{trend.range.high.toFixed(dec)}</span>
-          </div>
-          {trend.range.note && <p className="text-[9px] text-muted mt-1 italic">{trend.range.note}</p>}
-        </div>
-      )}
     </section>
   )
 }
