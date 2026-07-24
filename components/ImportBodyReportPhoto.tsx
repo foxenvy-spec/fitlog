@@ -32,6 +32,9 @@ export interface ExtractedBodyReport {
   inorganic_salt_range_high: number | null
   protein_range_low: number | null
   protein_range_high: number | null
+  bone_mass_kg: number | null
+  bone_mass_range_low: number | null
+  bone_mass_range_high: number | null
 }
 
 const FIELD_LABEL: Record<keyof ExtractedBodyReport, string> = {
@@ -64,6 +67,9 @@ const FIELD_LABEL: Record<keyof ExtractedBodyReport, string> = {
   inorganic_salt_range_high: 'ช่วงเกลือแร่ สูงสุด',
   protein_range_low: 'ช่วงโปรตีน ต่ำสุด',
   protein_range_high: 'ช่วงโปรตีน สูงสุด',
+  bone_mass_kg: 'มวลกระดูก',
+  bone_mass_range_low: 'ช่วงมวลกระดูก ต่ำสุด',
+  bone_mass_range_high: 'ช่วงมวลกระดูก สูงสุด',
 }
 
 function fileToBase64(file: File): Promise<string> {
