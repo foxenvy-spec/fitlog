@@ -813,6 +813,7 @@ export default function HealthPage() {
               deltaUnit="ระดับ"
               direction="lowerBetter"
               note={latest?.visceral_fat_grade != null ? (latest.visceral_fat_grade <= 9 ? 'อยู่ในเกณฑ์ปกติ' : 'สูงกว่าเกณฑ์ปกติ') : undefined}
+              noteGood={latest?.visceral_fat_grade != null ? latest.visceral_fat_grade <= 9 : true}
             />
             <IconStatCard
               label="น้ำในร่างกาย"
@@ -1730,6 +1731,7 @@ function IconStatCard({
   deltaUnit = '',
   direction = 'neutral',
   note,
+  noteGood = true,
 }: {
   label: string
   subLabel: string
@@ -1742,6 +1744,7 @@ function IconStatCard({
   deltaUnit?: string
   direction?: Direction
   note?: string
+  noteGood?: boolean
 }) {
   const Icon = TREND_ICONS[icon] ?? ScaleIcon
   const deltaGood = delta !== null && direction !== 'neutral' && (direction === 'higherBetter' ? delta > 0 : delta < 0)
@@ -1759,17 +1762,20 @@ function IconStatCard({
           <p className="text-[9px] tracked uppercase text-muted truncate">{subLabel}</p>
         </div>
       </div>
-      <p className="font-mono text-xl tabular text-ink">
-        {value !== null && value !== undefined ? value.toFixed(decimals) : '—'}
-        {unit && <span className="text-xs text-muted ml-1">{unit}</span>}
-      </p>
-      {note ? (
-        <p className="text-[10px] text-muted mt-1">{note}</p>
-      ) : delta !== null ? (
-        <p className={`text-[11px] font-mono mt-1 ${deltaColor}`}>
-          {delta > 0 ? '↑' : delta < 0 ? '↓' : '·'} {Math.abs(delta).toFixed(decimals)} {deltaUnit}
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="font-mono text-xl tabular text-ink">
+          {value !== null && value !== undefined ? value.toFixed(decimals) : '—'}
+          {unit && <span className="text-xs text-muted ml-1">{unit}</span>}
         </p>
-      ) : null}
+        {note ? (
+          <span className={`text-[11px] whitespace-nowrap shrink-0 ${noteGood ? 'text-moss' : 'text-rusttext'}`}>{note}</span>
+        ) : delta !== null ? (
+          <span className={`text-[11px] font-mono whitespace-nowrap shrink-0 ${deltaColor}`}>
+            {delta > 0 ? '↑' : delta < 0 ? '↓' : '·'} {Math.abs(delta).toFixed(decimals)}
+            {deltaUnit ? ` ${deltaUnit}` : ''}
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }
